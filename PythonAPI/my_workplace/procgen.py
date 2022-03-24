@@ -1,20 +1,18 @@
 import glob
 import os
 import sys
-import threading
 import time
 import carla
 from carla import VehicleLightState as vls
 import logging
 import math
 from numpy import random
-
+##import imageio
 from queue import Queue
 from queue import Empty
 from configparser import ConfigParser
+import threading
 from concurrent.futures import ThreadPoolExecutor
-
-
 
 try:
     sys.path.append(glob.glob('../carla/dist/carla-*%d.%d-%s.egg' % (
@@ -25,8 +23,12 @@ except IndexError:
     pass
 
 
+def saving(s):
+    s[0].save_to_disk('output/%06d.png' % s[1])
+
+
 def Weather(world, parser):
-    day_choice = parser.getint('worldsettings','timeofday')
+    day_choice = parser.getint('worldsettings', 'timeofday')
 
     if day_choice == 1:
         choice = random.randint(1, 28)
@@ -111,7 +113,7 @@ def Weather(world, parser):
         weather_conversion.sun_altitude_angle = weather_conversion.sun_altitude_angle - 180  # Night
         world.set_weather(weather_conversion)
 
-        #------------------------------Clear Day----------------------------------------
+        # ------------------------------Clear Day----------------------------------------
     elif choice == 25:
         weather_conversion = carla.WeatherParameters.ClearNoon
         weather_conversion.sun_altitude_angle = weather_conversion.sun_altitude_angle - 180  # Night
@@ -120,12 +122,13 @@ def Weather(world, parser):
         world.set_weather(carla.WeatherParameters.ClearSunset)
     elif choice == 27:
         weather_conversion = carla.WeatherParameters.ClearSunset
-        weather_conversion.sun_azimuth_angle = weather_conversion.sun_azimuth_angle + 180 # Dawn
+        weather_conversion.sun_azimuth_angle = weather_conversion.sun_azimuth_angle + 180  # Dawn
         world.set_weather(weather_conversion)
     elif choice == 28:
         world.set_weather(carla.WeatherParameters.ClearNoon)
 
     return choice
+
 
 def get_actor_blueprints(world, filter, generation):
     bps = world.get_blueprint_library().filter(filter)
@@ -155,56 +158,49 @@ def get_actor_blueprints(world, filter, generation):
 def sensor_callback(sensor_data, sensor_queue, sensor_name):
     # Do stuff with the sensor_data data like save it to disk
     # Then you just need to add to the queue
-    #sensor_data.save_to_disk('output/%06d.png' % sensor_data.frame)
+    # sensor_data.save_to_disk('output/%06d.png' % sensor_data.frame)
 
     sensor_queue.put((sensor_data, sensor_data.frame))
 
 
-def saving(s):
-    s[0].save_to_disk('output/%06d.png' % s[1])
-
-
 def main():
-
     parser = ConfigParser()
     parser.read('config.ini')
-    number_of_vehicles = parser.getint('vehiclesettings','number_of_vehicles')
-    number_of_walkers = parser.getint('walkersettings','number_of_walkers')
+    number_of_vehicles = parser.getint('vehiclesettings', 'number_of_vehicles')
+    number_of_walkers = parser.getint('walkersettings', 'number_of_walkers')
     seed = None
 
     logging.basicConfig(format='%(levelname)s: %(message)s', level=logging.INFO)
 
-    current_threads = 0
     vehicles_list = []
     walkers_list = []
     all_id = []
-    client = carla.Client(parser.get('worldsettings','host'), parser.getint('worldsettings','port'))
-    client.set_timeout(4000.0)
+    client = carla.Client(parser.get('worldsettings', 'host'), parser.getint('worldsettings', 'port'))
+    client.set_timeout(40.0)
     synchronous_master = False
     random.seed(seed if seed is not None else int(time.time()))
 
     try:
         map_choice = random.randint(1, 6)
-
         if map_choice == 6:
             world = client.load_world('Town10HD')
         else:
             world = client.load_world('Town0%d' % map_choice)
 
-        #world = client.get_world()
+        # world = client.get_world()
 
-        traffic_manager = client.get_trafficmanager(parser.getint('worldsettings','tm_port'))
+        traffic_manager = client.get_trafficmanager(parser.getint('worldsettings', 'tm_port'))
         traffic_manager.set_global_distance_to_leading_vehicle(2.5)
-        if parser.getboolean('worldsettings','respawn'):
+        if parser.getboolean('worldsettings', 'respawn'):
             traffic_manager.set_respawn_dormant_vehicles(True)
-        if parser.getboolean('worldsettings','hybrid'):
+        if parser.getboolean('worldsettings', 'hybrid'):
             traffic_manager.set_hybrid_physics_mode(True)
             traffic_manager.set_hybrid_physics_radius(70.0)
         if seed is not None:
             traffic_manager.set_random_device_seed(seed)
 
         settings = world.get_settings()
-        if not parser.getboolean('worldsettings','asynch'):
+        if not parser.getboolean('worldsettings', 'asynch'):
             traffic_manager.set_synchronous_mode(True)
             if not settings.synchronous_mode:
                 synchronous_master = True
@@ -220,16 +216,18 @@ def main():
             you could experience some issues. If it's not working correctly, switch to synchronous \
             mode by using traffic_manager.set_synchronous_mode(True)")
 
-        if parser.getboolean('worldsettings','no_rendering'):
+        if parser.getboolean('worldsettings', 'no_rendering'):
             settings.no_rendering_mode = True
         world.apply_settings(settings)
 
         choice = Weather(world, parser)
 
-        blueprints = get_actor_blueprints(world, parser.get('worldsettings','filterv'), parser.get('worldsettings','generationv'))
-        blueprintsWalkers = get_actor_blueprints(world, parser.get('worldsettings','filterw'), parser.get('worldsettings','generationw'))
+        blueprints = get_actor_blueprints(world, parser.get('worldsettings', 'filterv'),
+                                          parser.get('worldsettings', 'generationv'))
+        blueprintsWalkers = get_actor_blueprints(world, parser.get('worldsettings', 'filterw'),
+                                                 parser.get('worldsettings', 'generationw'))
 
-        if parser.getboolean('worldsettings','safe'):
+        if parser.getboolean('worldsettings', 'safe'):
             blueprints = [x for x in blueprints if int(x.get_attribute('number_of_wheels')) == 4]
             blueprints = [x for x in blueprints if not x.id.endswith('microlino')]
             blueprints = [x for x in blueprints if not x.id.endswith('carlacola')]
@@ -260,7 +258,7 @@ def main():
         # Spawn vehicles
         # --------------
         batch = []
-        hero = parser.getboolean('worldsettings','hero')
+        hero = parser.getboolean('worldsettings', 'hero')
         for n, transform in enumerate(spawn_points):
             if n >= number_of_vehicles:
                 break
@@ -294,12 +292,12 @@ def main():
         # Set automatic vehicle lights update if specified
         all_vehicle_actors = world.get_actors(vehicles_list)
 
-        attr = blueprint_library.find(parser.get('sensorsettings','bp'))
-        attr.set_attribute('image_size_x', parser.get('sensorsettings','x'))
-        attr.set_attribute('image_size_y', parser.get('sensorsettings','y'))
-        attr.set_attribute('fov', parser.get('sensorsettings','fov'))
-        attr.set_attribute('fstop', parser.get('sensorsettings','fstop'))
-        attr.set_attribute('sensor_tick', parser.get('sensorsettings','tick'))
+        attr = blueprint_library.find(parser.get('sensorsettings', 'bp'))
+        attr.set_attribute('image_size_x', parser.get('sensorsettings', 'x'))
+        attr.set_attribute('image_size_y', parser.get('sensorsettings', 'y'))
+        attr.set_attribute('fov', parser.get('sensorsettings', 'fov'))
+        attr.set_attribute('fstop', parser.get('sensorsettings', 'fstop'))
+        attr.set_attribute('sensor_tick', parser.get('sensorsettings', 'tick'))
         sensor_location = carla.Location(1, 0, 1.2)
         sensor_rotation = carla.Rotation(8.75, 0, 0)
         sensor_transform = carla.Transform(sensor_location, sensor_rotation)
@@ -307,7 +305,7 @@ def main():
         sensor = world.spawn_actor(attr, sensor_transform, attach_to=all_vehicle_actors[0],
                                    attachment_type=carla.AttachmentType.Rigid)
 
-        if parser.getboolean('worldsettings','car_lights_on'):
+        if parser.getboolean('worldsettings', 'car_lights_on'):
             if 1 <= choice <= 25:
                 all_vehicle_actors = world.get_actors(vehicles_list)
                 for actor in all_vehicle_actors:
@@ -321,16 +319,16 @@ def main():
                 building = lights.get_all_lights(carla.LightGroup.Building)
                 lights.turn_on(building)
 
-
         # -------------
         # Spawn Walkers
         # -------------
         # some settings
-        percentagePedestriansRunning = parser.getfloat('walkersettings','perc_run')  # how many pedestrians will run
-        percentagePedestriansCrossing = parser.getfloat('walkersettings','perc_cross') # how many pedestrians will walk through the road
-        if parser.getint('worldsettings','seedw'):
-            world.set_pedestrians_seed(parser.getint('worldsettings','seedw'))
-            random.seed(parser.getint('worldsettings','seedw'))
+        percentagePedestriansRunning = parser.getfloat('walkersettings', 'perc_run')  # how many pedestrians will run
+        percentagePedestriansCrossing = parser.getfloat('walkersettings',
+                                                        'perc_cross')  # how many pedestrians will walk through the road
+        if parser.getint('worldsettings', 'seedw'):
+            world.set_pedestrians_seed(parser.getint('worldsettings', 'seedw'))
+            random.seed(parser.getint('worldsettings', 'seedw'))
         # 1. take all the random locations to spawn
         spawn_points = []
         for i in range(number_of_walkers):
@@ -386,7 +384,7 @@ def main():
         all_actors = world.get_actors(all_id)
 
         # wait for a tick to ensure client receives the last transform of the walkers we have just created
-        if parser.getboolean('worldsettings','asynch') or not synchronous_master:
+        if parser.getboolean('worldsettings', 'asynch') or not synchronous_master:
             world.wait_for_tick()
         else:
             world.tick()
@@ -410,11 +408,11 @@ def main():
         spectator = world.get_spectator()
         sensor_queue = Queue()
         timer = 0
-        timer1 = 0
         sensor.listen(lambda data: sensor_callback(data, sensor_queue, "camera01"))
-        executor = ThreadPoolExecutor(5)
+        executor = ThreadPoolExecutor(16)
+        t0 = time.time()
         while True:
-            if not parser.getboolean('worldsettings','asynch') and synchronous_master:
+            if not parser.getboolean('worldsettings', 'asynch') and synchronous_master:
                 world.tick()
                 transform = all_vehicle_actors[0].get_transform()
                 spectator.set_transform(carla.Transform(transform.location + carla.Location(z=25),
@@ -422,30 +420,30 @@ def main():
             else:
                 world.wait_for_tick()
 
-            if timer >= 2:
-
+            if timer > 10:
                 break
-
-            timer += 1 / 60
 
             if sensor_queue.qsize() > 0:
                 s = sensor_queue.get(True, 0.01)
                 # t = threading.Thread(target=saving, args=(s,))
                 # t.start()
-                f = executor.submit(saving, (s,))
+                f = executor.submit(saving, s)
+            timer += 1 / 60
+
             print(timer)
+        t1 = time.time()
+        print(f'Done in {t1 - t0} seconds.')
 
 
 
 
 
     finally:
-        # sensor_data.save_to_disk('output/%06d.png' % sensor_data.frame)
 
         world.tick()
         sensor.destroy()
 
-        if not parser.getboolean('worldsettings','asynch') and synchronous_master:
+        if not parser.getboolean('worldsettings', 'asynch') and synchronous_master:
             settings = world.get_settings()
             settings.synchronous_mode = False
             settings.no_rendering_mode = False
@@ -468,20 +466,12 @@ def main():
 
 if __name__ == '__main__':
     try:
-        t0 = time.time()
-        # while True:
-    #    fileList = []
-   #     for file in os.listdir('output/'):
-  #          complete_path = 'output/' + file
- #           fileList.append(complete_path)
-#            writer = imageio.get_writer('test.mp4', fps=20)
-
-#        for im in fileList:
- #           writer.append_data(imageio.imread(im))
-  #      writer.close()
+        #while True:
         main()
+
+
+
     except KeyboardInterrupt:
         pass
     finally:
-        t1 = time.time()
-        print(f'Done in {t1-t0} seconds.')
+        print('\ndone.')
