@@ -409,7 +409,7 @@ def main():
         sensor_queue = Queue()
         timer = 0
         sensor.listen(lambda data: sensor_callback(data, sensor_queue, "camera01"))
-        executor = ThreadPoolExecutor(16)
+        executor = ThreadPoolExecutor(10)
         t0 = time.time()
         while True:
             if not parser.getboolean('worldsettings', 'asynch') and synchronous_master:
@@ -420,7 +420,7 @@ def main():
             else:
                 world.wait_for_tick()
 
-            if timer > 10:
+            if timer > 3600:
                 break
 
             if sensor_queue.qsize() > 0:
