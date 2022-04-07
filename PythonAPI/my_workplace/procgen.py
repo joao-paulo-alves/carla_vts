@@ -155,12 +155,11 @@ def get_actor_blueprints(world, filter, generation):
         return []
 
 
-def sensor_callback(sensor_data, sensor_queue, sensor_name):
+def sensor_callback(sensor_data, sensor_queue, timer):
     # Do stuff with the sensor_data data like save it to disk
     # Then you just need to add to the queue
     # sensor_data.save_to_disk('output/%06d.png' % sensor_data.frame)
-
-    sensor_queue.put((sensor_data, sensor_data.frame))
+    sensor_queue.put((sensor_data, sensor_data.frame, timer))
 
 
 def main():
@@ -182,12 +181,13 @@ def main():
 
     try:
         map_choice = random.randint(1, 6)
+
         if map_choice == 6:
             world = client.load_world('Town10HD')
         else:
             world = client.load_world('Town0%d' % map_choice)
 
-        # world = client.get_world()
+        world = client.get_world()
 
         traffic_manager = client.get_trafficmanager(parser.getint('worldsettings', 'tm_port'))
         traffic_manager.set_global_distance_to_leading_vehicle(2.5)
@@ -295,8 +295,8 @@ def main():
         attr = blueprint_library.find(parser.get('sensorsettings', 'bp'))
         attr.set_attribute('image_size_x', parser.get('sensorsettings', 'x'))
         attr.set_attribute('image_size_y', parser.get('sensorsettings', 'y'))
-        attr.set_attribute('fov', parser.get('sensorsettings', 'fov'))
-        attr.set_attribute('fstop', parser.get('sensorsettings', 'fstop'))
+        # attr.set_attribute('fov', parser.get('sensorsettings', 'fov'))
+        # attr.set_attribute('fstop', parser.get('sensorsettings', 'fstop'))
         attr.set_attribute('sensor_tick', parser.get('sensorsettings', 'tick'))
         sensor_location = carla.Location(1, 0, 1.2)
         sensor_rotation = carla.Rotation(8.75, 0, 0)
@@ -408,9 +408,16 @@ def main():
         spectator = world.get_spectator()
         sensor_queue = Queue()
         timer = 0
+<<<<<<< HEAD
         sensor.listen(lambda data: sensor_callback(data, sensor_queue, "camera01"))
         executor = ThreadPoolExecutor(10)
         t0 = time.time()
+=======
+        sensor.listen(lambda data: sensor_callback(data, sensor_queue, timer))
+        executor = ThreadPoolExecutor(16)
+        i = 0
+        timestamp = [None] * 1150
+>>>>>>> origin/main
         while True:
             if not parser.getboolean('worldsettings', 'asynch') and synchronous_master:
                 world.tick()
@@ -425,24 +432,27 @@ def main():
 
             if sensor_queue.qsize() > 0:
                 s = sensor_queue.get(True, 0.01)
+                timestamp[i] = s[2]
+                i = i + 1
                 # t = threading.Thread(target=saving, args=(s,))
                 # t.start()
                 f = executor.submit(saving, s)
             timer += 1 / 60
 
-            print(timer)
-        t1 = time.time()
-        print(f'Done in {t1 - t0} seconds.')
+
+
 
 
 
 
 
     finally:
+        file = open("guru99.txt", "w+")
+        f = open("guru99.txt", "w+")
+        for x in timestamp
 
         world.tick()
         sensor.destroy()
-
         if not parser.getboolean('worldsettings', 'asynch') and synchronous_master:
             settings = world.get_settings()
             settings.synchronous_mode = False
@@ -466,7 +476,7 @@ def main():
 
 if __name__ == '__main__':
     try:
-        #while True:
+        # while True:
         main()
 
 
