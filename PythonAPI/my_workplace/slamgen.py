@@ -2,17 +2,17 @@ import glob
 import os
 import sys
 import time
+from math import cos, sin, atan2
 import carla
+import imageio
 from carla import VehicleLightState as vls
 import logging
-import math
 from numpy import random
-##import imageio
 from queue import Queue
-from queue import Empty
 from configparser import ConfigParser
-import threading
 from concurrent.futures import ThreadPoolExecutor
+import os
+
 
 try:
     sys.path.append(glob.glob('../carla/dist/carla-*%d.%d-%s.egg' % (
@@ -33,8 +33,20 @@ class Ego:
         self.pitch = pitch
 
 
+def save_to_mp4():
+    fileList = []
+    for file in os.listdir('output/'):
+        complete_path = 'output/' + file
+        fileList.append(complete_path)
+        writer = imageio.get_writer('test.mp4', fps=10)
+
+    for im in fileList:
+        writer.append_data(imageio.imread(im))
+    writer.close()
+
+
 def saving(s, i):
-    s[0].save_to_disk('output/%06d.png' % i)
+    s[0].save_to_disk('output/%06d.png' % s[1])
 
 
 def Weather(world, parser):
@@ -196,7 +208,7 @@ def main():
             world = client.load_world('Town10HD')
         else:
             world = client.load_world('Town0%d' % map_choice)
-        world = client.load_world('Town04')
+        world = client.load_world('Town10HD')
         # world = client.get_world()
 
         traffic_manager = client.get_trafficmanager(parser.getint('worldsettings', 'tm_port'))
@@ -426,7 +438,7 @@ def main():
         sensor_queue = Queue()
         timer = 0
         sensor.listen(lambda data: sensor_callback(data, sensor_queue, timer, all_vehicle_actors))
-        executor = ThreadPoolExecutor(16)
+        executor = ThreadPoolExecutor(8)
         i = 0
         timestamp = [None] * 1150
         location = [None] * 1150
@@ -439,14 +451,14 @@ def main():
             else:
                 world.wait_for_tick()
 
-            if timer > 60:
+            if timer > 300:
                 break
 
             if sensor_queue.qsize() > 0:
                 s = sensor_queue.get(True, 0.01)
-                timestamp[i] = s[2]
-                location[i] = Ego(s[3].location.x, s[3].location.y, s[3].location.z, s[3].rotation.yaw,
-                                  s[3].rotation.roll, s[3].rotation.pitch)
+               # timestamp[i] = s[2]
+               # location[i] = Ego(s[3].location.x, s[3].location.y, s[3].location.z, s[3].rotation.yaw,
+                #                  s[3].rotation.roll, s[3].rotation.pitch)
 
                 # t = threading.Thread(target=saving, args=(s,))
                 # t.start()
@@ -486,53 +498,55 @@ def main():
 
         time.sleep(0.5)
 
-        file = open("times.txt", "w+")
-        f = open("times.txt", "w+")
-        for x in timestamp:
-            if x is not None:
-                x = float(x)
-                scientific_notation = "{:e}".format(x)
-                f.write("%s\n" % scientific_notation)
-        f.close()
+        # file = open("times.txt", "w+")
+        # f = open("times.txt", "w+")
+        # for x in timestamp:
+        #     if x is not None:
+        #         x = float(x)
+        #         scientific_notation = "{:e}".format(x)
+        #         f.write("%s\n" % scientific_notation)
+        # f.close()
 
-        file = open("base_coodinates.txt", "w+")
-        f = open("base_coordinates.txt", "w+")
-        for x in location:
-            if x is not None:
-                f.write("%f, %f, %f, %f, %f, %f\n" % (x.x, x.y, x.z, x.yaw, x.roll, x.pitch))
-        f.close()
+        # file = open("base_coodinates.txt", "w+")
+        # f = open("base_coordinates.txt", "w+")
+        # for x in location:
+        #     if x is not None:
+        #         f.write("%f, %f, %f, %f, %f, %f\n" % (x.x, x.y, x.z, x.yaw, x.roll, x.pitch))
+        # f.close()
 
-        reformed_location = [None] * 600
-        i = 0
-        for x in location:
-            if i == 0:
-                reformed_location[i] = Ego(0, 0,
-                                           0, 0,
-                                           0,
-                                           0)
-            elif x is not None:
-                reformed_location[i] = Ego(x.x - origin.location.x, x.y - origin.location.y,
-                                           x.z - origin.location.z, x.yaw - origin.rotation.yaw,
-                                           x.roll - origin.rotation.roll,
-                                           x.pitch - origin.rotation.pitch)
-            if x is not None:
-                previous_values = Ego(x.x, x.y, x.z, x.yaw, x.roll, x.pitch)
-            i = i + 1
+        # reformed_location = [None] * 600
+        # i = 0
+        # for x in location:
+        #     if i == 0:
+        #         reformed_location[i] = Ego(x.y - origin.location.y, x.x - origin.location.x,
+        #                                    x.z - origin.location.z, x.yaw - origin.rotation.yaw,
+        #                                    x.roll - origin.rotation.roll,
+        #                                    x.pitch - origin.rotation.pitch)
+        #         # Ego(0, 0,
+        #         #                        0, 0,
+        #         #                        0,
+        #         #                        0)
+        #     elif x is not None:
+        #         theta =  #atan2((-1)*reformed_location[i - 1].y, reformed_location[i - 1].x)
+        #         reformed_location[i] = Ego((x.x * cos(theta) - x.y * sin(theta)) + origin.location.x, (x.x * sin(theta) + x.y * cos(theta)) + origin.location.y,
+        #                                    x.z - origin.location.z, x.yaw - origin.rotation.yaw,
+        #                                    x.roll - origin.rotation.roll,
+        #                                    x.pitch - origin.rotation.pitch)
 
-        file = open("coordinates.txt", "w+")
-        f = open("coordinates.txt", "w+")
-        for x in reformed_location:
-            if x is not None:
-                f.write("%f, %f, %f, %f, %f, %f\n" % (x.x, x.y, x.z, x.yaw, x.roll, x.pitch))
-        f.close()
+            # i = i + 1
+
+        # file = open("coordinates.txt", "w+")
+        # f = open("coordinates.txt", "w+")
+        # for x in reformed_location:
+        #     if x is not None:
+        #         f.write("%f, %f, %f, %f, %f, %f\n" % (x.x, x.y, x.z, x.yaw, x.roll, x.pitch))
+        # f.close()
 
 
 if __name__ == '__main__':
     try:
-        # while True:
         main()
-
-
+        save_to_mp4()
 
     except KeyboardInterrupt:
         pass
