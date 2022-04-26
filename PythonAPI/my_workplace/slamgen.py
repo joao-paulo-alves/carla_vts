@@ -12,7 +12,7 @@ from queue import Queue
 from configparser import ConfigParser
 from concurrent.futures import ThreadPoolExecutor
 import os
-
+import pygame
 
 try:
     sys.path.append(glob.glob('../carla/dist/carla-*%d.%d-%s.egg' % (
@@ -33,20 +33,27 @@ class Ego:
         self.pitch = pitch
 
 
-def save_to_mp4():
-    fileList = []
-    for file in os.listdir('output/'):
-        complete_path = 'output/' + file
-        fileList.append(complete_path)
-        writer = imageio.get_writer('test.mp4', fps=10)
-
-    for im in fileList:
-        writer.append_data(imageio.imread(im))
-    writer.close()
+# def save_to_mp4():
+#     fileList = []
+#     for file in os.listdir('output/'):
+#         complete_path = 'output/' + file
+#         fileList.append(complete_path)
+#         writer = imageio.get_writer('my_video.mp4', format='FFMPEG', mode='I', fps=1,
+#                        codec='.yuv',
+#                        output_params=['-vaapi_device',
+#                                       '/dev/dri/renderD128',
+#                                       '-vf',
+#                                       'format=gray|nv12,hwupload'],
+#                        pixelformat='vaapi_vld')
+#
+#
+#     for im in fileList:
+#         writer.append_data(imageio.imread(im))
+#     writer.close()
 
 
 def saving(s, i):
-    s[0].save_to_disk('output/%06d.png' % s[1])
+    s[0].save_to_disk('output/%06d.png' % i)
 
 
 def Weather(world, parser):
@@ -60,7 +67,6 @@ def Weather(world, parser):
         choice = random.randint(1, 28)
         while 1 <= choice <= 18 or 26 <= choice <= 28:
             choice = random.randint(1, 28)
-
     # ------------------------Cloudy Day---------------------------------
     if choice == 1:
         world.set_weather(carla.WeatherParameters.CloudyNoon)
@@ -198,17 +204,17 @@ def main():
     walkers_list = []
     all_id = []
     client = carla.Client(parser.get('worldsettings', 'host'), parser.getint('worldsettings', 'port'))
-    client.set_timeout(40.0)
+    client.set_timeout(120.0)
     synchronous_master = False
     random.seed(seed if seed is not None else int(time.time()))
 
     try:
         map_choice = random.randint(1, 6)
-        if map_choice == 6:
-            world = client.load_world('Town10HD')
-        else:
-            world = client.load_world('Town0%d' % map_choice)
-        world = client.load_world('Town10HD')
+        # if map_choice == 6:
+        #     world = client.load_world('Town10HD')
+        # else:
+        #     world = client.load_world('Town0%d' % map_choice)
+        world = client.load_world('Town01')
         # world = client.get_world()
 
         traffic_manager = client.get_trafficmanager(parser.getint('worldsettings', 'tm_port'))
@@ -315,11 +321,55 @@ def main():
         all_vehicle_actors = world.get_actors(vehicles_list)
 
         attr = blueprint_library.find(parser.get('sensorsettings', 'bp'))
-        attr.set_attribute('image_size_x', parser.get('sensorsettings', 'x'))
-        attr.set_attribute('image_size_y', parser.get('sensorsettings', 'y'))
+        attr.set_attribute('enable_postprocess_effects', parser.get('sensorsettings', 'enable_postprocess_effects'))
+        # Basic camera attributes
+        attr.set_attribute('bloom_intensity', parser.get('sensorsettings', 'bloom_intensity'))
         attr.set_attribute('fov', parser.get('sensorsettings', 'fov'))
         attr.set_attribute('fstop', parser.get('sensorsettings', 'fstop'))
-        attr.set_attribute('sensor_tick', parser.get('sensorsettings', 'tick'))
+        attr.set_attribute('image_size_x', parser.get('sensorsettings', 'image_size_x'))
+        attr.set_attribute('image_size_y', parser.get('sensorsettings', 'image_size_y'))
+        attr.set_attribute('iso', parser.get('sensorsettings', 'iso'))
+        attr.set_attribute('gamma', parser.get('sensorsettings', 'gamma'))
+        attr.set_attribute('lens_flare_intensity', parser.get('sensorsettings', 'lens_flare_intensity'))
+        attr.set_attribute('sensor_tick', '0.1')
+        attr.set_attribute('shutter_speed', parser.get('sensorsettings', 'shutter_speed'))
+
+        # Camera lens distortion attributes
+        attr.set_attribute('lens_circle_falloff', parser.get('sensorsettings', 'lens_circle_falloff'))
+        attr.set_attribute('lens_circle_multiplier', parser.get('sensorsettings', 'lens_circle_multiplier'))
+        attr.set_attribute('lens_k', parser.get('sensorsettings', 'lens_k'))
+        attr.set_attribute('lens_kcube', parser.get('sensorsettings', 'lens_kcube'))
+        attr.set_attribute('lens_x_size', parser.get('sensorsettings', 'lens_x_size'))
+        attr.set_attribute('lens_y_size', parser.get('sensorsettings', 'lens_y_size'))
+
+        # Advanced camera attributes
+        attr.set_attribute('min_fstop', parser.get('sensorsettings', 'min_fstop'))
+        attr.set_attribute('blade_count', parser.get('sensorsettings', 'blade_count'))
+        attr.set_attribute('exposure_mode', parser.get('sensorsettings', 'exposure_mode'))
+        attr.set_attribute('exposure_compensation', parser.get('sensorsettings', 'exposure_compensation'))
+        attr.set_attribute('exposure_min_bright', parser.get('sensorsettings', 'exposure_min_bright'))
+        attr.set_attribute('exposure_max_bright', parser.get('sensorsettings', 'exposure_max_bright'))
+        attr.set_attribute('exposure_speed_up', parser.get('sensorsettings', 'exposure_speed_up'))
+        attr.set_attribute('exposure_speed_down', parser.get('sensorsettings', 'exposure_speed_down'))
+        attr.set_attribute('calibration_constant', parser.get('sensorsettings', 'calibration_constant'))
+        attr.set_attribute('focal_distance', parser.get('sensorsettings', 'focal_distance'))
+        attr.set_attribute('blur_amount', parser.get('sensorsettings', 'blur_amount'))
+        attr.set_attribute('blur_radius', parser.get('sensorsettings', 'blur_radius'))
+        attr.set_attribute('motion_blur_intensity', parser.get('sensorsettings', 'motion_blur_intensity'))
+        attr.set_attribute('motion_blur_max_distortion', parser.get('sensorsettings', 'motion_blur_max_distortion'))
+        attr.set_attribute('motion_blur_min_object_screen_size',
+                           parser.get('sensorsettings', 'motion_blur_min_object_screen_size'))
+        attr.set_attribute('slope', parser.get('sensorsettings', 'slope'))
+        attr.set_attribute('toe', parser.get('sensorsettings', 'toe'))
+        attr.set_attribute('shoulder', parser.get('sensorsettings', 'shoulder'))
+        attr.set_attribute('black_clip', parser.get('sensorsettings', 'black_clip'))
+        attr.set_attribute('white_clip', parser.get('sensorsettings', 'white_clip'))
+        attr.set_attribute('temp', parser.get('sensorsettings', 'temp'))
+        attr.set_attribute('tint', parser.get('sensorsettings', 'tint'))
+        attr.set_attribute('chromatic_aberration_intensity',
+                           parser.get('sensorsettings', 'chromatic_aberration_intensity'))
+        attr.set_attribute('chromatic_aberration_offset', parser.get('sensorsettings', 'chromatic_aberration_offset'))
+
         sensor_location = carla.Location(1, 0, 1.2)
         sensor_rotation = carla.Rotation(8.75, 0, 0)
         sensor_transform = carla.Transform(sensor_location, sensor_rotation)
@@ -437,34 +487,37 @@ def main():
         spectator = world.get_spectator()
         sensor_queue = Queue()
         timer = 0
+
         sensor.listen(lambda data: sensor_callback(data, sensor_queue, timer, all_vehicle_actors))
-        executor = ThreadPoolExecutor(8)
+
+        executor = ThreadPoolExecutor(16)
         i = 0
         timestamp = [None] * 1150
         location = [None] * 1150
+
         while True:
             if not parser.getboolean('worldsettings', 'asynch') and synchronous_master:
                 world.tick()
-                transform = all_vehicle_actors[0].get_transform()
-                spectator.set_transform(carla.Transform(transform.location + carla.Location(z=25),
-                                                        carla.Rotation(pitch=-90)))
+                transform = sensor.get_transform()
+                spectator.set_transform(carla.Transform(transform.location,
+                                                        transform.rotation))
             else:
                 world.wait_for_tick()
 
-            if timer > 300:
+            if timer > 10:
                 break
 
             if sensor_queue.qsize() > 0:
                 s = sensor_queue.get(True, 0.01)
-               # timestamp[i] = s[2]
-               # location[i] = Ego(s[3].location.x, s[3].location.y, s[3].location.z, s[3].rotation.yaw,
+                # timestamp[i] = s[2]
+                # location[i] = Ego(s[3].location.x, s[3].location.y, s[3].location.z, s[3].rotation.yaw,
                 #                  s[3].rotation.roll, s[3].rotation.pitch)
-
-                # t = threading.Thread(target=saving, args=(s,))
-                # t.start()
                 f = executor.submit(saving, s, i)
                 i = i + 1
             timer += 1 / 60
+            print(timer)
+
+
 
 
 
@@ -474,7 +527,6 @@ def main():
 
 
     finally:
-
         world.tick()
         sensor.destroy()
 
@@ -533,7 +585,7 @@ def main():
         #                                    x.roll - origin.rotation.roll,
         #                                    x.pitch - origin.rotation.pitch)
 
-            # i = i + 1
+        # i = i + 1
 
         # file = open("coordinates.txt", "w+")
         # f = open("coordinates.txt", "w+")
@@ -545,8 +597,10 @@ def main():
 
 if __name__ == '__main__':
     try:
+
         main()
-        save_to_mp4()
+        # save_to_mp4()
+
 
     except KeyboardInterrupt:
         pass

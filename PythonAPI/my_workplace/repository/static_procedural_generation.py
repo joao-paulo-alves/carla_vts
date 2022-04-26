@@ -86,7 +86,8 @@ def main():
     random_attribution(20, 48, blueprint_library, world, spawn_points)
 
     camera.listen(lambda image: image.save_to_disk('output/%06d.png' % image.frame))
-
+    while True:
+        i = 1
 
 
 if __name__ == '__main__':

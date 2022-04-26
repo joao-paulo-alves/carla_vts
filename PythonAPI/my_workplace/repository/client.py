@@ -17,7 +17,7 @@ def main():
     client.set_timeout(30.0)
 
     # SET A SPECIFIED SCENARIO
-    world = client.load_world('Town03')
+    world = client.load_world('Town10HD')
 
     # GET THE CURRENT SCENARIO
     #world = client.get_world()
@@ -38,15 +38,16 @@ def main():
     main_actor = world.spawn_actor(vehicle_main, spawn_points[5])
     # -------------------------------Sensor Attach-------------------------------------------------#
     sensor = blueprint_library.find('sensor.camera.rgb')
-    sensor.set_attribute('image_size_x', '1820')
-    sensor.set_attribute('image_size_y', '561')
+    sensor.set_attribute('image_size_x', '3840')
+    sensor.set_attribute('image_size_y', '2160')
     sensor.set_attribute('fov', '110')
-    sensor.set_attribute('fstop', '1.6'),
+    sensor.set_attribute('fstop', '1.6')
+    sensor.set_attribute('sensor_tick', '1'),
 
 
    # sensor.set_attribute('sensor_tick', '1')
-    sensor_location = carla.Location(0.4, 0, 1.2)
-    sensor_rotation = carla.Rotation(8.75, 0, 0)
+    sensor_location = carla.Location(3, 0, 1.2)
+    sensor_rotation = carla.Rotation(0, 0, 0)
     sensor_transform = carla.Transform(sensor_location, sensor_rotation)
     camera = world.spawn_actor(sensor, sensor_transform , attach_to=main_actor,attachment_type=carla.AttachmentType.Rigid)
     camera.listen(lambda image: image.save_to_disk('output/%06d.png' % image.frame))
@@ -58,8 +59,8 @@ def main():
     while 1:
         # -------------------------------Spectator Mode-------------------------------------------------#
         spectator = world.get_spectator()
-        transform = camera.get_transform()
-        spectator.set_transform(carla.Transform(transform.location + carla.Location(z=2)+carla.Location(x=-6),carla.Rotation(yaw=transform.rotation.yaw, pitch=-15)))
+        transform = main_actor.get_transform()
+        spectator.set_transform(carla.Transform(transform.location + carla.Location(z=2)+carla.Location(x=-6),carla.Rotation(yaw=transform.rotation.yaw, pitch=-15,roll = transform.rotation.roll) ))
 
 
 if __name__ == '__main__':
