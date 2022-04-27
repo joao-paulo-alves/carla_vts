@@ -12,7 +12,19 @@ from queue import Queue
 from configparser import ConfigParser
 from concurrent.futures import ThreadPoolExecutor
 import os
+import random
+import time
+import numpy as np
+import cv2
+import atexit
+import imageio
+import transforms3d
+# import time
+from tqdm import tqdm
 import pygame
+
+IM_WIDTH = 2048
+IM_HEIGHT = 1536
 
 try:
     sys.path.append(glob.glob('../carla/dist/carla-*%d.%d-%s.egg' % (
@@ -21,6 +33,10 @@ try:
         'win-amd64' if os.name == 'nt' else 'linux-x86_64'))[0])
 except IndexError:
     pass
+
+images = []
+video_writer = imageio.get_writer('my_video.mp4', format='FFMPEG', mode='I', fps=15)
+#atexit.register(lambda: write_images_to_video(images, video_writer))
 
 
 class Ego:
@@ -33,27 +49,11 @@ class Ego:
         self.pitch = pitch
 
 
-# def save_to_mp4():
-#     fileList = []
-#     for file in os.listdir('output/'):
-#         complete_path = 'output/' + file
-#         fileList.append(complete_path)
-#         writer = imageio.get_writer('my_video.mp4', format='FFMPEG', mode='I', fps=1,
-#                        codec='.yuv',
-#                        output_params=['-vaapi_device',
-#                                       '/dev/dri/renderD128',
-#                                       '-vf',
-#                                       'format=gray|nv12,hwupload'],
-#                        pixelformat='vaapi_vld')
-#
-#
-#     for im in fileList:
-#         writer.append_data(imageio.imread(im))
-#     writer.close()
-
-
-def saving(s, i):
-    s[0].save_to_disk('output/%06d.png' % i)
+def write_images_to_video(images, video_writer):
+    print("Writing images to video file...")
+    for img in tqdm(images):
+        video_writer.append_data(img)
+    video_writer.close()
 
 
 def Weather(world, parser):
@@ -67,6 +67,7 @@ def Weather(world, parser):
         choice = random.randint(1, 28)
         while 1 <= choice <= 18 or 26 <= choice <= 28:
             choice = random.randint(1, 28)
+    choice = 26
     # ------------------------Cloudy Day---------------------------------
     if choice == 1:
         world.set_weather(carla.WeatherParameters.CloudyNoon)
@@ -184,11 +185,17 @@ def get_actor_blueprints(world, filter, generation):
 
 
 def sensor_callback(sensor_data, sensor_queue, timer, all_vehicle_actors):
-    # Do stuff with the sensor_data data like save it to disk
-    # Then you just need to add to the queue
-    # sensor_data.save_to_disk('output/%06d.png' % sensor_data.frame)
     ego_location = all_vehicle_actors[0].get_transform()
-    sensor_queue.put((sensor_data, sensor_data.frame, timer, ego_location))
+    sensor_queue.put((sensor_data, timer, ego_location))
+
+
+def saving(s, x):
+    i = np.array(s[0].raw_data, dtype='uint8')
+    i2 = i.reshape((IM_HEIGHT, IM_WIDTH, 4))
+    i3 = i2[:, :, :3]
+    im_rgb = cv2.cvtColor(i3, cv2.COLOR_BGR2RGB)
+    cv2.imwrite('output/%06d.png' % x, i3)
+    images.append(im_rgb)
 
 
 def main():
@@ -196,7 +203,7 @@ def main():
     parser.read('config.ini')
     number_of_vehicles = parser.getint('vehiclesettings', 'number_of_vehicles')
     number_of_walkers = parser.getint('walkersettings', 'number_of_walkers')
-    seed = None
+    seed = 1
 
     logging.basicConfig(format='%(levelname)s: %(message)s', level=logging.INFO)
 
@@ -214,7 +221,7 @@ def main():
         #     world = client.load_world('Town10HD')
         # else:
         #     world = client.load_world('Town0%d' % map_choice)
-        world = client.load_world('Town01')
+        world = client.load_world('Town04')
         # world = client.get_world()
 
         traffic_manager = client.get_trafficmanager(parser.getint('worldsettings', 'tm_port'))
@@ -483,17 +490,20 @@ def main():
             timer += 1 / 60
             if timer > 1:
                 break
-        origin = all_vehicle_actors[0].get_transform()
-        spectator = world.get_spectator()
-        sensor_queue = Queue()
-        timer = 0
 
-        sensor.listen(lambda data: sensor_callback(data, sensor_queue, timer, all_vehicle_actors))
+        spectator = world.get_spectator()
+
+        sensor_queue = Queue()
+
+        timer = 0
+        i = 0
 
         executor = ThreadPoolExecutor(16)
-        i = 0
-        timestamp = [None] * 1150
-        location = [None] * 1150
+
+        timestamp = []
+        location = []
+
+        sensor.listen(lambda data: sensor_callback(data, sensor_queue, timer, all_vehicle_actors))
 
         while True:
             if not parser.getboolean('worldsettings', 'asynch') and synchronous_master:
@@ -504,27 +514,17 @@ def main():
             else:
                 world.wait_for_tick()
 
-            if timer > 10:
+            if timer > 5:
                 break
 
             if sensor_queue.qsize() > 0:
                 s = sensor_queue.get(True, 0.01)
-                # timestamp[i] = s[2]
-                # location[i] = Ego(s[3].location.x, s[3].location.y, s[3].location.z, s[3].rotation.yaw,
-                #                  s[3].rotation.roll, s[3].rotation.pitch)
+                timestamp.append(s[1])
+                location.append(Ego(s[2].location.x, s[2].location.y, s[2].location.z, s[2].rotation.yaw,
+                                    s[2].rotation.roll, s[2].rotation.pitch))
                 f = executor.submit(saving, s, i)
                 i = i + 1
             timer += 1 / 60
-            print(timer)
-
-
-
-
-
-
-
-
-
 
     finally:
         world.tick()
@@ -550,57 +550,62 @@ def main():
 
         time.sleep(0.5)
 
-        # file = open("times.txt", "w+")
-        # f = open("times.txt", "w+")
-        # for x in timestamp:
-        #     if x is not None:
-        #         x = float(x)
-        #         scientific_notation = "{:e}".format(x)
-        #         f.write("%s\n" % scientific_notation)
-        # f.close()
+        file = open("times.txt", "w+")
+        f = open("times.txt", "w+")
+        for x in timestamp:
+            time_origin = timestamp[0]
+            if x is not None:
+                x = float(x - time_origin)
+                scientific_notation = "{:e}".format(x)
+                f.write("%s\n" % scientific_notation)
+        f.close()
 
-        # file = open("base_coodinates.txt", "w+")
-        # f = open("base_coordinates.txt", "w+")
-        # for x in location:
-        #     if x is not None:
-        #         f.write("%f, %f, %f, %f, %f, %f\n" % (x.x, x.y, x.z, x.yaw, x.roll, x.pitch))
-        # f.close()
+        file = open("base_coordinates.txt", "w+")
+        f = open("base_coordinates.txt", "w+")
+        for x in location:
+            if x is not None:
+                f.write("%f, %f, %f, %f, %f, %f\n" % (x.x, -x.y, x.z, x.yaw, -x.roll, -x.pitch))
+        f.close()
 
-        # reformed_location = [None] * 600
-        # i = 0
-        # for x in location:
-        #     if i == 0:
-        #         reformed_location[i] = Ego(x.y - origin.location.y, x.x - origin.location.x,
-        #                                    x.z - origin.location.z, x.yaw - origin.rotation.yaw,
-        #                                    x.roll - origin.rotation.roll,
-        #                                    x.pitch - origin.rotation.pitch)
-        #         # Ego(0, 0,
-        #         #                        0, 0,
-        #         #                        0,
-        #         #                        0)
-        #     elif x is not None:
-        #         theta =  #atan2((-1)*reformed_location[i - 1].y, reformed_location[i - 1].x)
-        #         reformed_location[i] = Ego((x.x * cos(theta) - x.y * sin(theta)) + origin.location.x, (x.x * sin(theta) + x.y * cos(theta)) + origin.location.y,
-        #                                    x.z - origin.location.z, x.yaw - origin.rotation.yaw,
-        #                                    x.roll - origin.rotation.roll,
-        #                                    x.pitch - origin.rotation.pitch)
+        reformed_location = []
+        origin = location[0]
+        i = 0
+        for x in location:
+            if x is not None:
+                reformed_location.append(Ego(x.x - origin.x, x.y - origin.y,
+                                             x.z - origin.z, x.yaw - origin.yaw,
+                                             x.roll - origin.roll,
+                                             x.pitch - origin.pitch))
+        final_location = []
+        for x in reformed_location:
+            if x is not None:
+                R = 0
+                rl = 0
+                new_rl = 0
+                R = transforms3d.euler.euler2mat(float(np.radians(x.roll)),
+                                                 float(np.radians(x.pitch)),
+                                                 float(np.radians(x.yaw))).T
 
-        # i = i + 1
+                rl = np.array([x.x, x.y, x.z])
+                new_rl = np.dot(R, rl)
 
-        # file = open("coordinates.txt", "w+")
-        # f = open("coordinates.txt", "w+")
-        # for x in reformed_location:
-        #     if x is not None:
-        #         f.write("%f, %f, %f, %f, %f, %f\n" % (x.x, x.y, x.z, x.yaw, x.roll, x.pitch))
-        # f.close()
+                final_location.append(Ego(new_rl[0], new_rl[1],
+                                             new_rl[2], x.yaw,
+                                             x.roll,
+                                             x.pitch))
+
+        file = open("GT_coordinates.txt", "w+")
+        f = open("GT_coordinates.txt", "w+")
+        for x in final_location:
+            if x is not None:
+                f.write("%f, %f, %f, %f, %f, %f\n" % (x.x, x.y, x.z, x.yaw, x.roll, x.pitch))
+        f.close()
 
 
 if __name__ == '__main__':
     try:
 
         main()
-        # save_to_mp4()
-
 
     except KeyboardInterrupt:
         pass

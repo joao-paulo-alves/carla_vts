@@ -8,24 +8,22 @@ fig, ax1 = plt.subplots()
 
 # ax = fig.add_subplot(111)
 
-f = open("base_coordinates.txt", "r")
+f = open("GT_coordinates.txt", "r")
 lines = f.readlines()
 resultx = []
 resulty = []
 resultz = []
 for x in lines:
     resultx.append(x.split(',')[0])
-    # resulty.append(x.split(' ')[7])
-    resultz.append(x.split(',')[1])
-
-
+    resulty.append(x.split(',')[1])
+    #resultz.append(x.split(',')[2])
 f.close()
 
 
 resultx = numpy.asarray(resultx).astype(numpy.float)
-resultz = numpy.asarray(resultz).astype(numpy.float)
+resulty = numpy.asarray(resulty).astype(numpy.float)
 fresultx = resultx - numpy.mean(resultx)
-fresultz = resultz - numpy.mean(resultz)
+fresulty = resulty - numpy.mean(resulty)
 
 # for x in range(len(fresultx)):
 
@@ -55,7 +53,7 @@ fresultz = resultz - numpy.mean(resultz)
 # fresultx = scale(fresultx, axis=0, with_mean=True, with_std=True, copy=True)
 # fresultz = scale(fresultz, axis=0, with_mean=True, with_std=True, copy=True)
 
-plt.plot(resultx, resultz, color="r")
+plt.plot(resultx, resulty, color="r")
 plt.axis('equal')
 
 
