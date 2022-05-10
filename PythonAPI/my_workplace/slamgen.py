@@ -22,10 +22,14 @@ import transforms3d
 # import time
 from tqdm import tqdm
 import pygame
+import math
+from PIL import Image
+from carla_agents.agents.navigation.basic_agent import BasicAgent
 
-IM_WIDTH = 2048
-IM_HEIGHT = 1536
 
+IM_WIDTH = 1277
+IM_HEIGHT = 370
+#;2048 ;1536
 try:
     sys.path.append(glob.glob('../carla/dist/carla-*%d.%d-%s.egg' % (
         sys.version_info.major,
@@ -35,8 +39,10 @@ except IndexError:
     pass
 
 images = []
-video_writer = imageio.get_writer('my_video.mp4', format='FFMPEG', mode='I', fps=15)
-#atexit.register(lambda: write_images_to_video(images, video_writer))
+video_writer = imageio.get_writer('my_video.mp4', format='FFMPEG', mode='I', fps=10)
+
+
+##atexit.register(lambda: write_images_to_video(images, video_writer))
 
 
 class Ego:
@@ -67,7 +73,7 @@ def Weather(world, parser):
         choice = random.randint(1, 28)
         while 1 <= choice <= 18 or 26 <= choice <= 28:
             choice = random.randint(1, 28)
-    choice = 26
+    choice = 28
     # ------------------------Cloudy Day---------------------------------
     if choice == 1:
         world.set_weather(carla.WeatherParameters.CloudyNoon)
@@ -193,8 +199,11 @@ def saving(s, x):
     i = np.array(s[0].raw_data, dtype='uint8')
     i2 = i.reshape((IM_HEIGHT, IM_WIDTH, 4))
     i3 = i2[:, :, :3]
-    im_rgb = cv2.cvtColor(i3, cv2.COLOR_BGR2RGB)
-    cv2.imwrite('output/%06d.png' % x, i3)
+    im_rgb = cv2.cvtColor(i3, cv2.COLOR_BGR2GRAY)
+    #dim = (1277, 370)
+    #resized = cv2.resize(im_rgb, dim, interpolation=cv2.INTER_AREA)
+    Image.fromarray(im_rgb).save('output/%06d.png' % x)
+    #cv2.imwrite('output/%06d.png' % x, im_rgb)
     images.append(im_rgb)
 
 
@@ -203,7 +212,7 @@ def main():
     parser.read('config.ini')
     number_of_vehicles = parser.getint('vehiclesettings', 'number_of_vehicles')
     number_of_walkers = parser.getint('walkersettings', 'number_of_walkers')
-    seed = 1
+    seed = 4
 
     logging.basicConfig(format='%(levelname)s: %(message)s', level=logging.INFO)
 
@@ -221,8 +230,8 @@ def main():
         #     world = client.load_world('Town10HD')
         # else:
         #     world = client.load_world('Town0%d' % map_choice)
-        world = client.load_world('Town04')
-        # world = client.get_world()
+
+        world = client.load_world('Town10HD')
 
         traffic_manager = client.get_trafficmanager(parser.getint('worldsettings', 'tm_port'))
         traffic_manager.set_global_distance_to_leading_vehicle(2.5)
@@ -318,6 +327,7 @@ def main():
             z = SetAutopilot(FutureActor, True, traffic_manager.get_port())
             batch.append(x.then(z))
 
+
         for response in client.apply_batch_sync(batch, synchronous_master):
             if response.error:
                 logging.error(response.error)
@@ -338,7 +348,7 @@ def main():
         attr.set_attribute('iso', parser.get('sensorsettings', 'iso'))
         attr.set_attribute('gamma', parser.get('sensorsettings', 'gamma'))
         attr.set_attribute('lens_flare_intensity', parser.get('sensorsettings', 'lens_flare_intensity'))
-        attr.set_attribute('sensor_tick', '0.1')
+        attr.set_attribute('sensor_tick', '0.05')
         attr.set_attribute('shutter_speed', parser.get('sensorsettings', 'shutter_speed'))
 
         # Camera lens distortion attributes
@@ -505,6 +515,7 @@ def main():
 
         sensor.listen(lambda data: sensor_callback(data, sensor_queue, timer, all_vehicle_actors))
 
+
         while True:
             if not parser.getboolean('worldsettings', 'asynch') and synchronous_master:
                 world.tick()
@@ -514,13 +525,15 @@ def main():
             else:
                 world.wait_for_tick()
 
-            if timer > 5:
+            if timer > 420:
                 break
 
             if sensor_queue.qsize() > 0:
                 s = sensor_queue.get(True, 0.01)
                 timestamp.append(s[1])
-                location.append(Ego(s[2].location.x, s[2].location.y, s[2].location.z, s[2].rotation.yaw,
+                if s[2].rotation.yaw < 0:
+                    s[2].rotation.yaw = s[2].rotation.yaw + 360
+                location.append(Ego(-s[2].location.x, s[2].location.y, s[2].location.z, s[2].rotation.yaw,
                                     s[2].rotation.roll, s[2].rotation.pitch))
                 f = executor.submit(saving, s, i)
                 i = i + 1
@@ -564,7 +577,7 @@ def main():
         f = open("base_coordinates.txt", "w+")
         for x in location:
             if x is not None:
-                f.write("%f, %f, %f, %f, %f, %f\n" % (x.x, -x.y, x.z, x.yaw, -x.roll, -x.pitch))
+                f.write("%f, %f, %f, %f, %f, %f\n" % (x.x, x.y, x.z, x.yaw, x.roll, -x.pitch))
         f.close()
 
         reformed_location = []
@@ -576,27 +589,23 @@ def main():
                                              x.z - origin.z, x.yaw - origin.yaw,
                                              x.roll - origin.roll,
                                              x.pitch - origin.pitch))
-        final_location = []
+        # <>
+        newloc = []
         for x in reformed_location:
-            if x is not None:
-                R = 0
-                rl = 0
-                new_rl = 0
-                R = transforms3d.euler.euler2mat(float(np.radians(x.roll)),
-                                                 float(np.radians(x.pitch)),
-                                                 float(np.radians(x.yaw))).T
+            theta = math.radians(location[0].yaw - 90)
+            xx = x.x
+            yy = x.y
 
-                rl = np.array([x.x, x.y, x.z])
-                new_rl = np.dot(R, rl)
-
-                final_location.append(Ego(new_rl[0], new_rl[1],
-                                             new_rl[2], x.yaw,
-                                             x.roll,
-                                             x.pitch))
+            x1 = xx * math.cos(theta) - yy * math.sin(theta)
+            y1 = xx * math.sin(theta) + yy * math.cos(theta)
+            newloc.append(Ego(x1, y1,
+                              x.z, x.yaw,
+                              x.roll,
+                              x.pitch))
 
         file = open("GT_coordinates.txt", "w+")
         f = open("GT_coordinates.txt", "w+")
-        for x in final_location:
+        for x in newloc:
             if x is not None:
                 f.write("%f, %f, %f, %f, %f, %f\n" % (x.x, x.y, x.z, x.yaw, x.roll, x.pitch))
         f.close()

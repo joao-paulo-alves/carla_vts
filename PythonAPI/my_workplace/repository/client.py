@@ -50,17 +50,17 @@ def main():
     sensor_rotation = carla.Rotation(0, 0, 0)
     sensor_transform = carla.Transform(sensor_location, sensor_rotation)
     camera = world.spawn_actor(sensor, sensor_transform , attach_to=main_actor,attachment_type=carla.AttachmentType.Rigid)
-    camera.listen(lambda image: image.save_to_disk('output/%06d.png' % image.frame))
+    #camera.listen(lambda image: image.save_to_disk('output/%06d.png' % image.frame))
 
     # -------------------------------Auto Pilot-------------------------------------------------#
-    main_actor.set_autopilot(True)
+    #main_actor.set_autopilot(True)
 
 
     while 1:
         # -------------------------------Spectator Mode-------------------------------------------------#
         spectator = world.get_spectator()
         transform = main_actor.get_transform()
-        spectator.set_transform(carla.Transform(transform.location + carla.Location(z=2)+carla.Location(x=-6),carla.Rotation(yaw=transform.rotation.yaw, pitch=-15,roll = transform.rotation.roll) ))
+        spectator.set_transform(carla.Transform(transform.location + carla.Location(z=2)+carla.Location(x=-6),carla.Rotation(yaw=-140+360, pitch=-15,roll = transform.rotation.roll) ))
 
 
 if __name__ == '__main__':
