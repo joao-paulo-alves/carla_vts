@@ -3,7 +3,7 @@ import numpy
 
 
 class Quaternions:
-    def __init__(self, x, y, z, w):
+    def __init__(self, w, x, y, z):
         self.w = w
         self.x = x
         self.y = y
@@ -41,19 +41,20 @@ q_result = []
 e_result = []
 time = []
 orb_data = []
-# i = 0
 
-for x in lines:
+for c,i in enumerate(lines):
     q_result.append(
-        Quaternions(float(x.split(' ')[4]), float(x.split(' ')[5]), float(x.split(' ')[6]), float(x.split(' ')[7])))
-    time.append(float(x.split(' ')[0]))
-    x1 = float(x.split(' ')[1])
-    y1 = float(x.split(' ')[2])
-    z1 = float(x.split(' ')[3])
-    y = float(x.split(' ')[6])
-    z = float(x.split(' ')[7])
-    w = float(x.split(' ')[4])
-    x = float(x.split(' ')[5])
+        Quaternions(float(i.split(' ')[4]), float(i.split(' ')[5]), float(i.split(' ')[6]), float(i.split(' ')[7])))
+    time.append(float(i.split(' ')[0]))
+
+    x1 = float(i.split(' ')[1])
+    y1 = float(i.split(' ')[2])
+    z1 = float(i.split(' ')[3])
+
+    w = float(i.split(' ')[4])
+    x = float(i.split(' ')[5])
+    y = float(i.split(' ')[7])
+    z = float(i.split(' ')[6])
 
     t0 = +2.0 * (w * x + y * z)
     t1 = +1.0 - 2.0 * (x * x + y * y)
@@ -71,9 +72,8 @@ for x in lines:
     e_result.append(Euler(yaw_z, roll_x, pitch_y))
     orb_data.append(Data(x1, y1, z1, yaw_z,
                          pitch_y, roll_x))
+    print(yaw_z, pitch_y, roll_x, time[c])
 
-    # print("%s, %f, %f, %f \n" % (time[i], yaw_z, pitch_y, roll_x))
-    # i = i + 1
 
 f.close()
 
@@ -96,15 +96,34 @@ new_f.close()
 gt_norm = []
 orb_norm = []
 
-for x in gt_data:
-    vector = numpy.array([x.x, x.y, x.z])
-    unit_vector = vector / numpy.linalg.norm(vector)
-    gt_norm.append(Norm(unit_vector[0],unit_vector[1],unit_vector[2]))
+elapsed_distance_gt = 0
+elapsed_distance_orb = 0
+scale_factor = 0
 
-for x in orb_data:
-    vector = numpy.array([x.x, x.y, x.z])
-    unit_vector = vector / numpy.linalg.norm(vector)
-    orb_norm.append(Norm(unit_vector[0],unit_vector[1],unit_vector[2]))
+for i in gt_data:
+    vector = numpy.array([i.x, i.y, i.z])
+    elapsed_distance_gt += numpy.linalg.norm(vector)
 
 
-print("%f || %f" % (gt_norm[1].y,orb_norm[1].y))
+for i in orb_data:
+    vector = numpy.array([i.x, i.y, i.z])
+    elapsed_distance_orb += numpy.linalg.norm(vector)
+
+scale_factor = elapsed_distance_gt/elapsed_distance_orb
+
+for c, i in enumerate(orb_data):
+    orb_data[c] = Data(i.x * scale_factor, i.y * scale_factor, i.z * scale_factor, i.yaw, i.roll, i.pitch)
+
+
+import matplotlib.pyplot as plt
+fig, (ax1, ax2) = plt.subplots(2)
+
+ax1.plot([i.x for i in orb_data], [i.z for i in orb_data], color="r")
+ax1.axis('equal')
+
+ax2.plot([i.x for i in gt_data], [i.y for i in gt_data], color="g")
+ax2.axis('equal')
+
+plt.show()
+
+# print("%f || %f" % (gt_norm[1].y, orb_norm[1].y))

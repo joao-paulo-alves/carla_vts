@@ -92,12 +92,12 @@ world.apply_settings(settings)
 
 def main():
     attr = blueprint_library.find('vehicle.tesla.model3')
-    ego_car = world.spawn_actor(attr, spawn_points[69])
+    ego_car = world.spawn_actor(attr, spawn_points[88])
 
     attr = blueprint_library.find('sensor.camera.rgb')
     attr.set_attribute('image_size_x', '1277')
     attr.set_attribute('image_size_y', '370')
-    attr.set_attribute('sensor_tick', '0.05')
+    attr.set_attribute('sensor_tick', str(1 / 10))
     sensor_location = carla.Location(1, 0, 1.2)
     sensor_rotation = carla.Rotation(8.75, 0, 0)
     transform = carla.Transform(sensor_location, sensor_rotation)
@@ -113,8 +113,8 @@ def main():
 
     spectator = world.get_spectator()
     agent = BasicAgent(ego_car)
-    set_dest = 2
-    agent.set_destination((spawn_points[88]).location)
+    set_dest = 3
+    agent.set_destination((spawn_points[118]).location)
     world.tick()
 
     sensor_queue = Queue()
@@ -124,6 +124,7 @@ def main():
     timestamp = []
     location = []
     sensor.listen(lambda data: sensor_callback(data, sensor_queue, timer, ego_car))
+    end = 0
     while True:
         world.tick()
         if agent.done():
@@ -143,21 +144,26 @@ def main():
             elif set_dest == 3:
                 agent.set_destination((spawn_points[53]).location)
                 set_dest = 0
+                end = end + 1
                 print("Setting to 0")
         ego_car.apply_control(agent.run_step())
         transform = sensor.get_transform()
         spectator.set_transform(carla.Transform(transform.location,
                                                 transform.rotation))
 
-        if timer > 600:
+        if timer > 300:
+            break
+        if end == 2:
             break
 
         if sensor_queue.qsize() > 0:
             s = sensor_queue.get(True, 0.01)
+            # if s[2].rotation.yaw < 0:
+            #     s[2].rotation.yaw = (s[2].rotation.yaw + 180) * (-1)
+            # elif s[2].rotation.yaw > 0:
+            #     s[2].rotation.yaw = (s[2].rotation.yaw - 180) * (-1)
             timestamp.append(s[1])
-            if s[2].rotation.yaw < 0:
-                s[2].rotation.yaw = s[2].rotation.yaw + 360
-            location.append(Ego(-s[2].location.x, s[2].location.y, s[2].location.z, s[2].rotation.yaw,
+            location.append(Ego(-s[2].location.x, s[2].location.y, s[2].location.z, -s[2].rotation.yaw,
                                 s[2].rotation.roll, s[2].rotation.pitch))
             f = executor.submit(saving, s, i)
             i = i + 1
@@ -175,19 +181,22 @@ def main():
 
     file = open("times.txt", "w+")
     f = open("times.txt", "w+")
+    time = []
     for x in timestamp:
         time_origin = timestamp[0]
         if x is not None:
             x = float(x - time_origin)
             scientific_notation = "{:e}".format(x)
             f.write("%s\n" % scientific_notation)
+            time.append(scientific_notation)
+
     f.close()
 
     file = open("base_coordinates.txt", "w+")
     f = open("base_coordinates.txt", "w+")
     for x in location:
         if x is not None:
-            f.write("%f, %f, %f, %f, %f, %f\n" % (x.x, x.y, x.z, x.yaw, x.roll, -x.pitch))
+            f.write("%f, %f, %f, %f, %f, %f\n" % (x.x, x.y, x.z, x.yaw, x.roll, x.pitch))
     f.close()
 
     reformed_location = []
@@ -196,16 +205,16 @@ def main():
     for x in location:
         if x is not None:
             reformed_location.append(Ego(x.x - origin.x, x.y - origin.y,
-                                         x.z - origin.z, x.yaw - origin.yaw,
-                                         x.roll - origin.roll,
-                                         x.pitch - origin.pitch))
+                                         x.z - origin.z, x.yaw,
+                                         x.roll,
+                                         x.pitch))
     # <>
     newloc = []
+
     for x in reformed_location:
         theta = math.radians(location[0].yaw - 90)
         xx = x.x
         yy = x.y
-
         x1 = xx * math.cos(theta) - yy * math.sin(theta)
         y1 = xx * math.sin(theta) + yy * math.cos(theta)
         newloc.append(Ego(x1, y1,
@@ -215,9 +224,11 @@ def main():
 
     file = open("GT_coordinates.txt", "w+")
     f = open("GT_coordinates.txt", "w+")
+    i = 0
     for x in newloc:
         if x is not None:
-            f.write("%f, %f, %f, %f, %f, %f\n" % (x.x, x.y, x.z, x.yaw, x.roll, x.pitch))
+            f.write("%s, %f, %f, %f, %f, %f, %f\n" % (time[i], x.x, x.y, x.z, x.yaw, x.roll, x.pitch))
+        i = i + 1
     f.close()
 
 

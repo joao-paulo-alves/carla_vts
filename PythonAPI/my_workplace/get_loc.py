@@ -13,7 +13,7 @@ client = carla.Client('localhost', 2000)
 client.set_timeout(300.0)
 
 # SET A SPECIFIED SCENARIO
-world = client.load_world('Town10HD')
+world = client.load_world('Town03')
 
 # GET ALL THE RECOMMENDED SPAWN LOCATIONS FOR VEHICLES
 spawn_points = world.get_map().get_spawn_points()
