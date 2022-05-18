@@ -1,5 +1,8 @@
 import math
+from copy import deepcopy
+
 import numpy
+import numpy as np
 
 
 class Quaternions:
@@ -42,7 +45,7 @@ e_result = []
 time = []
 orb_data = []
 
-for c,i in enumerate(lines):
+for c, i in enumerate(lines):
     q_result.append(
         Quaternions(float(i.split(' ')[4]), float(i.split(' ')[5]), float(i.split(' ')[6]), float(i.split(' ')[7])))
     time.append(float(i.split(' ')[0]))
@@ -72,8 +75,7 @@ for c,i in enumerate(lines):
     e_result.append(Euler(yaw_z, roll_x, pitch_y))
     orb_data.append(Data(x1, y1, z1, yaw_z,
                          pitch_y, roll_x))
-    print(yaw_z, pitch_y, roll_x, time[c])
-
+    # print(yaw_z, pitch_y, roll_x, time[c])
 
 f.close()
 
@@ -104,26 +106,118 @@ for i in gt_data:
     vector = numpy.array([i.x, i.y, i.z])
     elapsed_distance_gt += numpy.linalg.norm(vector)
 
-
 for i in orb_data:
     vector = numpy.array([i.x, i.y, i.z])
     elapsed_distance_orb += numpy.linalg.norm(vector)
 
-scale_factor = elapsed_distance_gt/elapsed_distance_orb
+scale_factor = elapsed_distance_gt / elapsed_distance_orb
 
 for c, i in enumerate(orb_data):
     orb_data[c] = Data(i.x * scale_factor, i.y * scale_factor, i.z * scale_factor, i.yaw, i.roll, i.pitch)
 
+gt_rot_mat = numpy.zeros((4, 4))
+gt_rot_mat[3][3] = 1
+orb_rot_mat = numpy.zeros((4, 4))
+orb_rot_mat[3][3] = 1
+orb_collector = []
+gt_collector = []
 
-import matplotlib.pyplot as plt
-fig, (ax1, ax2) = plt.subplots(2)
+for c, i in enumerate(gt_data):
+    gt_rot_mat_new = deepcopy(gt_rot_mat)
+    gt_rot_mat_new[0][0] = math.cos(i.pitch) * math.cos(i.yaw)
+    gt_rot_mat_new[0][1] = math.sin(i.roll) * math.sin(i.pitch) * math.cos(i.yaw) - math.cos(i.roll) * math.sin(i.yaw)
+    gt_rot_mat_new[0][2] = math.cos(i.roll) * math.sin(i.pitch) * math.cos(i.yaw) + math.sin(i.roll) * math.sin(i.yaw)
+    gt_rot_mat_new[0][3] = i.x
+    gt_rot_mat_new[1][0] = math.cos(i.pitch) * math.sin(i.yaw)
+    gt_rot_mat_new[1][1] = math.sin(i.roll) * math.sin(i.pitch) * math.sin(i.yaw) + math.cos(i.roll) * math.cos(i.yaw)
+    gt_rot_mat_new[1][2] = math.cos(i.roll) * math.sin(i.pitch) * math.sin(i.yaw) - math.sin(i.roll) * math.cos(i.yaw)
+    gt_rot_mat_new[1][3] = i.y
+    gt_rot_mat_new[2][0] = (-1) * math.sin(i.pitch)
+    gt_rot_mat_new[2][1] = math.sin(i.roll) * math.cos(i.pitch)
+    gt_rot_mat_new[2][2] = math.cos(i.roll) * math.cos(i.pitch)
+    gt_rot_mat_new[2][3] = i.z
+    gt_collector.append(gt_rot_mat_new)
 
-ax1.plot([i.x for i in orb_data], [i.z for i in orb_data], color="r")
-ax1.axis('equal')
+for c, i in enumerate(orb_data):
+    orb_rot_mat_new = deepcopy(orb_rot_mat)
+    orb_rot_mat_new[0][0] = math.cos(i.pitch) * math.cos(i.yaw)
+    orb_rot_mat_new[0][1] = math.sin(i.roll) * math.sin(i.pitch) * math.cos(i.yaw) - math.cos(i.roll) * math.sin(i.yaw)
+    orb_rot_mat_new[0][2] = math.cos(i.roll) * math.sin(i.pitch) * math.cos(i.yaw) + math.sin(i.roll) * math.sin(i.yaw)
+    orb_rot_mat_new[0][3] = i.x
+    orb_rot_mat_new[1][0] = math.cos(i.pitch) * math.sin(i.yaw)
+    orb_rot_mat_new[1][1] = math.sin(i.roll) * math.sin(i.pitch) * math.sin(i.yaw) + math.cos(i.roll) * math.cos(i.yaw)
+    orb_rot_mat_new[1][2] = math.cos(i.roll) * math.sin(i.pitch) * math.sin(i.yaw) - math.sin(i.roll) * math.cos(i.yaw)
+    orb_rot_mat_new[1][3] = i.y
+    orb_rot_mat_new[2][0] = (-1) * math.sin(i.pitch)
+    orb_rot_mat_new[2][1] = math.sin(i.roll) * math.cos(i.pitch)
+    orb_rot_mat_new[2][2] = math.cos(i.roll) * math.cos(i.pitch)
+    orb_rot_mat_new[2][3] = i.z
+    orb_collector.append(orb_rot_mat_new)
 
-ax2.plot([i.x for i in gt_data], [i.y for i in gt_data], color="g")
-ax2.axis('equal')
+# ________________Evaluation
+err = []
+step_size = 10
+length = [100,200,300,400,500,600,700,800]
+dist = []
+dist.append(0)
+for c, i in enumerate(gt_collector):
+    if c+1 > len(gt_collector)-1:
+        break
 
-plt.show()
+    P1 = numpy.zeros((4, 4))
+    P2 = numpy.zeros((4, 4))
+
+    P1 = gt_collector[c]
+    P2 = gt_collector[c+1]
+
+    dx = P1[0][3] - P2[0][3]
+    dy = P1[1][3] - P2[1][3]
+    dz = P1[2][3] - P2[2][3]
+    dist.append(dist[c]+math.sqrt(dx*dx+dy*dy+dz*dz))
+
+for first_frame in range(0,len(gt_collector),step_size):
+    for i in range(8):
+        comprimento = length[i]
+        for l in range(first_frame,len(dist),1):
+            if dist[l] > dist[first_frame] + comprimento:
+                last_frame = l
+                break
+            last_frame = -1
+        if last_frame == -1:
+            continue
+        pose_delta_gt = np.linalg.inv(gt_collector[first_frame]) * gt_collector[last_frame]
+        pose_delta_result = np.linalg.inv(orb_collector[first_frame]) * orb_collector[last_frame]
+        pose_error = np.linalg.inv(pose_delta_result)*pose_delta_gt
+
+        # Rotation Error
+        a = pose_error[0][0]
+        b = pose_error[1][1]
+        c = pose_error[2][2]
+        d = 0.5 * (a + b + c - 1.0)
+        # rot_err = math.acos(max(min(d))) #1.0f? -1.0f?
+
+        dx = pose_error[0][3]
+        dy = pose_error[1][3]
+        dz = pose_error[2][3]
+        t_err = math.sqrt(dx*dx+dy*dy+dz*dz)
+
+        num_frames = last_frame-first_frame+1
+        speed = comprimento/(0.1*num_frames)
+        print(speed)
+        print(t_err / comprimento)
+        err.append(t_err/comprimento)
+
+
+# import matplotlib.pyplot as plt
+#
+# fig, (ax1, ax2) = plt.subplots(2)
+#
+# ax1.plot([i.x for i in orb_data], [i.z for i in orb_data], color="r")
+# ax1.axis('equal')
+#
+# ax2.plot([i.x for i in gt_data], [i.y for i in gt_data], color="g")
+# ax2.axis('equal')
+#
+# plt.show()
 
 # print("%f || %f" % (gt_norm[1].y, orb_norm[1].y))
