@@ -37,6 +37,15 @@ class Norm:
         self.z = z
 
 
+class Error:
+    def __init__(self, first_frame, r_err, t_err, l, s):
+        self.first_frame = first_frame
+        self.r_err = r_err
+        self.t_err = t_err
+        self.len = l
+        self.speed = s
+
+
 f = open("KeyFrameTrajectory.txt", "r")
 
 lines = f.readlines()
@@ -56,8 +65,8 @@ for c, i in enumerate(lines):
 
     w = float(i.split(' ')[4])
     x = float(i.split(' ')[5])
-    y = float(i.split(' ')[7])
-    z = float(i.split(' ')[6])
+    y = float(i.split(' ')[6])
+    z = float(i.split(' ')[7])
 
     t0 = +2.0 * (w * x + y * z)
     t1 = +1.0 - 2.0 * (x * x + y * y)
@@ -84,14 +93,13 @@ new_f = open("new_GT.txt", "w")
 lines = f.readlines()
 gt_data = []
 
-for x in lines:
-    for y in time:
-        if float(x.split(',')[0]) == y:
-            new_f.write("%s" % x)
+for i in lines:
+    for j in time:
+        if float(i.split(',')[0]) == j:
+            new_f.write("%s" % i)
             gt_data.append(
-                Data(float(x.split(',')[1]), float(x.split(',')[2]), float(x.split(',')[3]), float(x.split(',')[4]),
-                     float(x.split(',')[5]), float(x.split(',')[6])))
-
+                Data(float(i.split(',')[1]), float(i.split(',')[3]), float(i.split(',')[2]), float(i.split(',')[4]),
+                     float(i.split(',')[5]), float(i.split(',')[6])))
 f.close()
 new_f.close()
 
@@ -114,6 +122,11 @@ scale_factor = elapsed_distance_gt / elapsed_distance_orb
 
 for c, i in enumerate(orb_data):
     orb_data[c] = Data(i.x * scale_factor, i.y * scale_factor, i.z * scale_factor, i.yaw, i.roll, i.pitch)
+
+new_f = open("new_orb.txt", "w")
+for i in orb_data:
+    new_f.write("%f, %f, %f, %f, %f, %f\n" % (i.x, i.y, i.z, i.yaw, i.roll, i.pitch))
+new_f.close()
 
 gt_rot_mat = numpy.zeros((4, 4))
 gt_rot_mat[3][3] = 1
@@ -157,67 +170,99 @@ for c, i in enumerate(orb_data):
 # ________________Evaluation
 err = []
 step_size = 10
-length = [100,200,300,400,500,600,700,800]
+length = [50,100,150, 200,250, 300,350, 400,450, 500, 600, 700, 800]
+#length = [50,100,200,300,400,500,600,700]
 dist = []
 dist.append(0)
 for c, i in enumerate(gt_collector):
-    if c+1 > len(gt_collector)-1:
+    if c + 1 > len(gt_collector) - 1:
         break
 
     P1 = numpy.zeros((4, 4))
     P2 = numpy.zeros((4, 4))
 
     P1 = gt_collector[c]
-    P2 = gt_collector[c+1]
+    P2 = gt_collector[c + 1]
 
     dx = P1[0][3] - P2[0][3]
     dy = P1[1][3] - P2[1][3]
     dz = P1[2][3] - P2[2][3]
-    dist.append(dist[c]+math.sqrt(dx*dx+dy*dy+dz*dz))
+    dist.append(dist[c] + math.sqrt(dx * dx + dy * dy + dz * dz))
 
-for first_frame in range(0,len(gt_collector),step_size):
-    for i in range(8):
+for first_frame in range(0, len(gt_collector), step_size):
+    for i in range(len(length)):
         comprimento = length[i]
-        for l in range(first_frame,len(dist),1):
+        for l in range(first_frame, len(dist), 1):
             if dist[l] > dist[first_frame] + comprimento:
                 last_frame = l
+                dist_final = dist[l]
+                dist_init = dist[first_frame]
                 break
             last_frame = -1
         if last_frame == -1:
             continue
-        pose_delta_gt = np.linalg.inv(gt_collector[first_frame]) * gt_collector[last_frame]
-        pose_delta_result = np.linalg.inv(orb_collector[first_frame]) * orb_collector[last_frame]
-        pose_error = np.linalg.inv(pose_delta_result)*pose_delta_gt
+        pose_delta_gt = np.dot(np.linalg.inv(gt_collector[first_frame]), gt_collector[last_frame])
+        pose_delta_result = np.dot(np.linalg.inv(orb_collector[first_frame]), orb_collector[last_frame])
+        pose_error = np.dot(np.linalg.inv(pose_delta_result), pose_delta_gt)
 
         # Rotation Error
         a = pose_error[0][0]
         b = pose_error[1][1]
         c = pose_error[2][2]
         d = 0.5 * (a + b + c - 1.0)
-        # rot_err = math.acos(max(min(d))) #1.0f? -1.0f?
+        rot_err = math.acos(max(min(d, 1.), -1.))
 
         dx = pose_error[0][3]
         dy = pose_error[1][3]
         dz = pose_error[2][3]
-        t_err = math.sqrt(dx*dx+dy*dy+dz*dz)
+        t_err = math.sqrt(dx * dx + dy * dy + dz * dz)
 
-        num_frames = last_frame-first_frame+1
-        speed = comprimento/(0.1*num_frames)
-        print(speed)
-        print(t_err / comprimento)
-        err.append(t_err/comprimento)
+        num_frames = last_frame - first_frame + 1
+        speed = comprimento / (0.1 * num_frames)
+
+        rot_err = rot_err / comprimento
+        t_err = t_err / comprimento
+        # print("Erro de translação: %f || Erro de rotação: %f || First Frame: %f e Last Frame: %f" % (t_err, rot_err, dist_init, dist_final))
+        err.append(Error(first_frame, rot_err, t_err, comprimento, speed))
+
+f = open("Final_Evaluation.txt", "w")
+for i in err:
+    f.write("%f, %f, %f, %f, %f\n" % (i.first_frame, i.r_err, i.t_err, i.len, i.speed))
+f.close()
+
+step_size = 3
+f = open("traj.txt", "w")
+for c, i in enumerate(range(0, len(gt_collector), step_size)):
+    matrix1 = gt_collector[c]
+    matrix2 = orb_collector[c]
+    f.write("%f, %f, %f, %f\n" % (matrix1[0][3], matrix1[1][3], matrix2[0][3], matrix2[1][3]))
+f.close()
+
+for c,i in enumerate(length):
+    t_err = 0
+    r_err = 0
+    num = 0
+    for j in err:
+        if math.fabs(j.len - length[c]) < 1.0:
+            t_err += j.t_err
+            r_err += j.r_err
+            num += 1
+    if num>2.5:
+        new_t = t_err/num
+        new_r = r_err / num
+        print("%f %f" % (length[c], new_t))
+        print("%f %f" % (length[c], new_r))
+
 
 
 # import matplotlib.pyplot as plt
+# fig = plt.figure(figsize=(10,10))
 #
-# fig, (ax1, ax2) = plt.subplots(2)
 #
-# ax1.plot([i.x for i in orb_data], [i.z for i in orb_data], color="r")
-# ax1.axis('equal')
+# plt.plot([i.x for i in orb_data], [i.z for i in orb_data], color="r", linestyle = "dotted" )
+# plt.axis('equal')
 #
-# ax2.plot([i.x for i in gt_data], [i.y for i in gt_data], color="g")
-# ax2.axis('equal')
+# plt.plot([i.x for i in gt_data], [i.z for i in gt_data], color="g")
+# plt.axis('equal')
 #
 # plt.show()
-
-# print("%f || %f" % (gt_norm[1].y, orb_norm[1].y))
