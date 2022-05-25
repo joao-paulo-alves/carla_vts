@@ -212,7 +212,7 @@ def main():
     parser.read('config.ini')
     number_of_vehicles = parser.getint('vehiclesettings', 'number_of_vehicles')
     number_of_walkers = parser.getint('walkersettings', 'number_of_walkers')
-    seed = 4
+    seed = 20
 
     logging.basicConfig(format='%(levelname)s: %(message)s', level=logging.INFO)
 
@@ -231,7 +231,7 @@ def main():
         # else:
         #     world = client.load_world('Town0%d' % map_choice)
 
-        world = client.load_world('Town10HD')
+        world = client.load_world('Town02')
 
         traffic_manager = client.get_trafficmanager(parser.getint('worldsettings', 'tm_port'))
         traffic_manager.set_global_distance_to_leading_vehicle(2.5)
@@ -348,7 +348,7 @@ def main():
         attr.set_attribute('iso', parser.get('sensorsettings', 'iso'))
         attr.set_attribute('gamma', parser.get('sensorsettings', 'gamma'))
         attr.set_attribute('lens_flare_intensity', parser.get('sensorsettings', 'lens_flare_intensity'))
-        attr.set_attribute('sensor_tick', '0.05')
+        attr.set_attribute('sensor_tick', '0.1')
         attr.set_attribute('shutter_speed', parser.get('sensorsettings', 'shutter_speed'))
 
         # Camera lens distortion attributes
@@ -512,6 +512,9 @@ def main():
 
         timestamp = []
         location = []
+        somador = 0
+
+        loc_init = sensor.get_transform()
 
         sensor.listen(lambda data: sensor_callback(data, sensor_queue, timer, all_vehicle_actors))
 
@@ -525,18 +528,22 @@ def main():
             else:
                 world.wait_for_tick()
 
-            if timer > 420:
+            if somador > 250:
                 break
 
             if sensor_queue.qsize() > 0:
                 s = sensor_queue.get(True, 0.01)
                 timestamp.append(s[1])
-                if s[2].rotation.yaw < 0:
-                    s[2].rotation.yaw = s[2].rotation.yaw + 360
-                location.append(Ego(-s[2].location.x, s[2].location.y, s[2].location.z, s[2].rotation.yaw,
+                # if s[2].rotation.yaw < 0:
+                #     s[2].rotation.yaw = s[2].rotation.yaw + 360
+                location.append(Ego(-s[2].location.x, s[2].location.y, s[2].location.z, -s[2].rotation.yaw,
                                     s[2].rotation.roll, s[2].rotation.pitch))
                 f = executor.submit(saving, s, i)
                 i = i + 1
+            loc_final = sensor.get_transform()
+            loc_dif = loc_final.location - loc_init.location
+            somador += math.sqrt(loc_dif.x * loc_dif.x + loc_dif.y * loc_dif.y + loc_dif.z * loc_dif.z)
+            loc_init = loc_final
             timer += 1 / 60
 
     finally:
@@ -565,19 +572,22 @@ def main():
 
         file = open("times.txt", "w+")
         f = open("times.txt", "w+")
+        time1 = []
         for x in timestamp:
             time_origin = timestamp[0]
             if x is not None:
                 x = float(x - time_origin)
                 scientific_notation = "{:e}".format(x)
                 f.write("%s\n" % scientific_notation)
+                time1.append(scientific_notation)
+
         f.close()
 
         file = open("base_coordinates.txt", "w+")
         f = open("base_coordinates.txt", "w+")
         for x in location:
             if x is not None:
-                f.write("%f, %f, %f, %f, %f, %f\n" % (x.x, x.y, x.z, x.yaw, x.roll, -x.pitch))
+                f.write("%f, %f, %f, %f, %f, %f\n" % (x.x, x.y, x.z, x.yaw, x.roll, x.pitch))
         f.close()
 
         reformed_location = []
@@ -586,16 +596,16 @@ def main():
         for x in location:
             if x is not None:
                 reformed_location.append(Ego(x.x - origin.x, x.y - origin.y,
-                                             x.z - origin.z, x.yaw - origin.yaw,
-                                             x.roll - origin.roll,
-                                             x.pitch - origin.pitch))
+                                             x.z - origin.z, x.yaw,
+                                             x.roll,
+                                             x.pitch))
         # <>
         newloc = []
+
         for x in reformed_location:
             theta = math.radians(location[0].yaw - 90)
             xx = x.x
             yy = x.y
-
             x1 = xx * math.cos(theta) - yy * math.sin(theta)
             y1 = xx * math.sin(theta) + yy * math.cos(theta)
             newloc.append(Ego(x1, y1,
@@ -605,9 +615,11 @@ def main():
 
         file = open("GT_coordinates.txt", "w+")
         f = open("GT_coordinates.txt", "w+")
+        i = 0
         for x in newloc:
             if x is not None:
-                f.write("%f, %f, %f, %f, %f, %f\n" % (x.x, x.y, x.z, x.yaw, x.roll, x.pitch))
+                f.write("%s, %f, %f, %f, %f, %f, %f\n" % (time1[i], x.x, x.y, x.z, x.yaw, x.roll, x.pitch))
+            i = i + 1
         f.close()
 
 

@@ -251,18 +251,18 @@ for c,i in enumerate(length):
         new_t = t_err/num
         new_r = r_err / num
         print("%f %f" % (length[c], new_t))
-        print("%f %f" % (length[c], new_r))
+        #print("%f %f" % (length[c], new_r))
 
 
 
-# import matplotlib.pyplot as plt
-# fig = plt.figure(figsize=(10,10))
-#
-#
-# plt.plot([i.x for i in orb_data], [i.z for i in orb_data], color="r", linestyle = "dotted" )
-# plt.axis('equal')
-#
-# plt.plot([i.x for i in gt_data], [i.z for i in gt_data], color="g")
-# plt.axis('equal')
-#
-# plt.show()
+import matplotlib.pyplot as plt
+fig = plt.figure(figsize=(10,10))
+
+
+plt.plot([i.x for i in orb_data], [i.z for i in orb_data], color="r", linestyle = "dotted" )
+plt.axis('equal')
+
+plt.plot([i.x for i in gt_data], [i.z for i in gt_data], color="g")
+plt.axis('equal')
+
+plt.show()
