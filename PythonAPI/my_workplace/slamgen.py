@@ -73,7 +73,7 @@ def Weather(world, parser):
         choice = random.randint(1, 28)
         while 1 <= choice <= 18 or 26 <= choice <= 28:
             choice = random.randint(1, 28)
-    choice = 28
+    choice = 27
     # ------------------------Cloudy Day---------------------------------
     if choice == 1:
         world.set_weather(carla.WeatherParameters.CloudyNoon)
@@ -208,6 +208,7 @@ def saving(s, x):
 
 
 def main():
+    os.mkdir(r"G:\Users\Mimi\Desktop\trabalho\carla_vts\PythonAPI\my_workplace\output")
     parser = ConfigParser()
     parser.read('config.ini')
     number_of_vehicles = parser.getint('vehiclesettings', 'number_of_vehicles')
@@ -231,7 +232,7 @@ def main():
         # else:
         #     world = client.load_world('Town0%d' % map_choice)
 
-        world = client.load_world('Town02')
+        world = client.load_world('Town04')
 
         traffic_manager = client.get_trafficmanager(parser.getint('worldsettings', 'tm_port'))
         traffic_manager.set_global_distance_to_leading_vehicle(2.5)
@@ -603,7 +604,7 @@ def main():
         newloc = []
 
         for x in reformed_location:
-            theta = math.radians(location[0].yaw - 90)
+            theta = math.radians(location[0].yaw + 90)
             xx = x.x
             yy = x.y
             x1 = xx * math.cos(theta) - yy * math.sin(theta)

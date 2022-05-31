@@ -98,7 +98,7 @@ for i in lines:
         if float(i.split(',')[0]) == j:
             new_f.write("%s" % i)
             gt_data.append(
-                Data(float(i.split(',')[1]), float(i.split(',')[3]), float(i.split(',')[2]), float(i.split(',')[4]),
+                Data(-float(i.split(',')[1]), float(i.split(',')[3]), -float(i.split(',')[2]), float(i.split(',')[4]),
                      float(i.split(',')[5]), float(i.split(',')[6])))
 f.close()
 new_f.close()
@@ -167,13 +167,28 @@ for c, i in enumerate(orb_data):
     orb_rot_mat_new[2][3] = i.z
     orb_collector.append(orb_rot_mat_new)
 
-# ________________Evaluation
+# ________________Evaluation__________________
 err = []
 step_size = 10
-length = [50,100,150, 200,250, 300,350, 400,450, 500, 600, 700, 800]
-#length = [50,100,200,300,400,500,600,700]
+length = [25,50, 75, 100, 125, 150, 175, 200, 225, 250, 300, 350, 400, 450, 500, 600, 700, 800]
+#length = [100, 200, 300, 400, 500, 600, 700]
+# length = [i * 1 for i in range(1, 30)]
+
 dist = []
 dist.append(0)
+
+errado = []
+# gt_collector = [
+#     numpy.array([[1, 2, 3, 0], [5, 6, 7, 0], [9, 1, 2, 0], [0, 0, 0, 1]]),
+#     numpy.array([[1, 2, 3, 1], [5, 6, 7, 1], [9, 1, 2, 1], [0, 0, 0, 1]]),
+#     numpy.array([[1, 2, 3, 2], [5, 6, 7, 2], [9, 1, 2, 2], [0, 0, 0, 1]]),
+#     numpy.array([[1, 2, 3, 3], [5, 6, 7, 3], [9, 1, 2, 3], [0, 0, 0, 1]])]
+# orb_collector = [
+#     numpy.array([[1, 2, 3, 1], [5, 6, 7, 1], [9, 1, 2, 1], [0, 0, 0, 1]]),
+#     numpy.array([[1, 2, 3, 2], [5, 6, 7, 2], [9, 1, 2, 2], [0, 0, 0, 1]]),
+#     numpy.array([[1, 2, 3, 3], [5, 6, 7, 3], [9, 1, 2, 3], [0, 0, 0, 1]]),
+#     numpy.array([[1, 2, 3, 4], [5, 6, 7, 4], [9, 1, 2, 4], [0, 0, 0, 1]])]
+
 for c, i in enumerate(gt_collector):
     if c + 1 > len(gt_collector) - 1:
         break
@@ -189,11 +204,13 @@ for c, i in enumerate(gt_collector):
     dz = P1[2][3] - P2[2][3]
     dist.append(dist[c] + math.sqrt(dx * dx + dy * dy + dz * dz))
 
+print(f"This is dist: {dist}")
+
 for first_frame in range(0, len(gt_collector), step_size):
-    for i in range(len(length)):
-        comprimento = length[i]
-        for l in range(first_frame, len(dist), 1):
-            if dist[l] > dist[first_frame] + comprimento:
+    for i,c in enumerate(length):
+        travelled_distance = length[i]
+        for l in range(first_frame, len(dist)):
+            if dist[l] > dist[first_frame] + travelled_distance:
                 last_frame = l
                 dist_final = dist[l]
                 dist_init = dist[first_frame]
@@ -201,6 +218,7 @@ for first_frame in range(0, len(gt_collector), step_size):
             last_frame = -1
         if last_frame == -1:
             continue
+
         pose_delta_gt = np.dot(np.linalg.inv(gt_collector[first_frame]), gt_collector[last_frame])
         pose_delta_result = np.dot(np.linalg.inv(orb_collector[first_frame]), orb_collector[last_frame])
         pose_error = np.dot(np.linalg.inv(pose_delta_result), pose_delta_gt)
@@ -218,12 +236,12 @@ for first_frame in range(0, len(gt_collector), step_size):
         t_err = math.sqrt(dx * dx + dy * dy + dz * dz)
 
         num_frames = last_frame - first_frame + 1
-        speed = comprimento / (0.1 * num_frames)
+        speed = travelled_distance / (0.1 * num_frames)
 
-        rot_err = rot_err / comprimento
-        t_err = t_err / comprimento
-        # print("Erro de translação: %f || Erro de rotação: %f || First Frame: %f e Last Frame: %f" % (t_err, rot_err, dist_init, dist_final))
-        err.append(Error(first_frame, rot_err, t_err, comprimento, speed))
+        rot_err = rot_err / travelled_distance
+        t_err = t_err / travelled_distance
+        err.append(Error(first_frame, rot_err, t_err, travelled_distance, speed))
+        print("De %f a %f o erro é: %f com o travelled_distance: %f" % (dist[first_frame], dist[l], t_err, travelled_distance))
 
 f = open("Final_Evaluation.txt", "w")
 for i in err:
@@ -237,32 +255,46 @@ for c, i in enumerate(range(0, len(gt_collector), step_size)):
     matrix2 = orb_collector[c]
     f.write("%f, %f, %f, %f\n" % (matrix1[0][3], matrix1[1][3], matrix2[0][3], matrix2[1][3]))
 f.close()
-
-for c,i in enumerate(length):
+print("----------------------------------------------")
+l = 0
+new_r = []
+new_t = []
+loc = []
+for c, i in enumerate(length):
     t_err = 0
     r_err = 0
     num = 0
     for j in err:
+
         if math.fabs(j.len - length[c]) < 1.0:
+            #print("%f - %f < 1.0. Valor: %f " % (j.len, length[c], j.t_err))
             t_err += j.t_err
             r_err += j.r_err
             num += 1
-    if num>2.5:
-        new_t = t_err/num
-        new_r = r_err / num
-        print("%f %f" % (length[c], new_t))
-        #print("%f %f" % (length[c], new_r))
-
-
+    if num > 2.5:
+        new_t.append(t_err / num)
+        new_r.append(r_err / num)
+        loc.append(length[c])
+        # print("%f %f" % (length[c], t_err / num))
+        # print("%f %f" % (length[c], r_err / num))
+        l += 1
 
 import matplotlib.pyplot as plt
-fig = plt.figure(figsize=(10,10))
 
+fig1 = plt.figure(figsize=(10, 10))
 
-plt.plot([i.x for i in orb_data], [i.z for i in orb_data], color="r", linestyle = "dotted" )
+plt.plot([i.x for i in orb_data], [i.z for i in orb_data], color="r", linestyle="dotted")
 plt.axis('equal')
+
+
 
 plt.plot([i.x for i in gt_data], [i.z for i in gt_data], color="g")
 plt.axis('equal')
+
+fig2 = plt.figure()
+plt.plot([i for i in loc], [i for i in new_t], color="b")
+
+# plt.plot([i for i in loc], [i for i in new_r], color="r", linestyle="dotted")
+# plt.axis('equal')
 
 plt.show()

@@ -36,16 +36,16 @@ fresulty = resulty - numpy.mean(resulty)
 ax1.plot(resultx, resulty, color="r")
 ax1.axis('equal')
 
-f = open("KeyFrameTrajectory.txt", "r")
-lines = f.readlines()
-resultx = []
-resulty = []
-resultz = []
-for x in lines:
-    resultx.append(x.split(' ')[1])
-    resulty.append(x.split(' ')[3])
-    #resultz.append(x.split(',')[2])
-f.close()
+# f = open("KeyFrameTrajectory.txt", "r")
+# lines = f.readlines()
+# resultx = []
+# resulty = []
+# resultz = []
+# for x in lines:
+#     resultx.append(x.split(' ')[1])
+#     resulty.append(x.split(' ')[3])
+#     #resultz.append(x.split(',')[2])
+# f.close()
 
 
 print(len(resultx))
