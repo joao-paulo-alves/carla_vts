@@ -73,7 +73,7 @@ def Weather(world, parser):
         choice = random.randint(1, 28)
         while 1 <= choice <= 18 or 26 <= choice <= 28:
             choice = random.randint(1, 28)
-    choice = 27
+    choice = 28
     # ------------------------Cloudy Day---------------------------------
     if choice == 1:
         world.set_weather(carla.WeatherParameters.CloudyNoon)
@@ -208,7 +208,7 @@ def saving(s, x):
 
 
 def main():
-    os.mkdir(r"G:\Users\Mimi\Desktop\trabalho\carla_vts\PythonAPI\my_workplace\output")
+    os.mkdir(r"C:\Users\uie95977\Documents\JoaoAlves\carla_vts\PythonAPI\my_workplace\output")
     parser = ConfigParser()
     parser.read('config.ini')
     number_of_vehicles = parser.getint('vehiclesettings', 'number_of_vehicles')
@@ -232,7 +232,7 @@ def main():
         # else:
         #     world = client.load_world('Town0%d' % map_choice)
 
-        world = client.load_world('Town04')
+        world = client.load_world('Town10HD')
 
         traffic_manager = client.get_trafficmanager(parser.getint('worldsettings', 'tm_port'))
         traffic_manager.set_global_distance_to_leading_vehicle(2.5)
@@ -265,7 +265,7 @@ def main():
             settings.no_rendering_mode = True
         world.apply_settings(settings)
 
-        choice = Weather(world, parser)
+        #choice = Weather(world, parser)
 
         blueprints = get_actor_blueprints(world, parser.get('worldsettings', 'filterv'),
                                           parser.get('worldsettings', 'generationv'))
@@ -339,55 +339,59 @@ def main():
         all_vehicle_actors = world.get_actors(vehicles_list)
 
         attr = blueprint_library.find(parser.get('sensorsettings', 'bp'))
-        attr.set_attribute('enable_postprocess_effects', parser.get('sensorsettings', 'enable_postprocess_effects'))
-        # Basic camera attributes
-        attr.set_attribute('bloom_intensity', parser.get('sensorsettings', 'bloom_intensity'))
+        # attr.set_attribute('enable_postprocess_effects', parser.get('sensorsettings', 'enable_postprocess_effects'))
+        # # Basic camera attributes
+        # attr.set_attribute('bloom_intensity', parser.get('sensorsettings', 'bloom_intensity'))
         attr.set_attribute('fov', parser.get('sensorsettings', 'fov'))
-        attr.set_attribute('fstop', parser.get('sensorsettings', 'fstop'))
+        # attr.set_attribute('fstop', parser.get('sensorsettings', 'fstop'))
         attr.set_attribute('image_size_x', parser.get('sensorsettings', 'image_size_x'))
         attr.set_attribute('image_size_y', parser.get('sensorsettings', 'image_size_y'))
-        attr.set_attribute('iso', parser.get('sensorsettings', 'iso'))
-        attr.set_attribute('gamma', parser.get('sensorsettings', 'gamma'))
-        attr.set_attribute('lens_flare_intensity', parser.get('sensorsettings', 'lens_flare_intensity'))
+        # attr.set_attribute('iso', parser.get('sensorsettings', 'iso'))
+        # attr.set_attribute('gamma', parser.get('sensorsettings', 'gamma'))
+        # attr.set_attribute('lens_flare_intensity', parser.get('sensorsettings', 'lens_flare_intensity'))
         attr.set_attribute('sensor_tick', '0.1')
-        attr.set_attribute('shutter_speed', parser.get('sensorsettings', 'shutter_speed'))
-
-        # Camera lens distortion attributes
-        attr.set_attribute('lens_circle_falloff', parser.get('sensorsettings', 'lens_circle_falloff'))
-        attr.set_attribute('lens_circle_multiplier', parser.get('sensorsettings', 'lens_circle_multiplier'))
-        attr.set_attribute('lens_k', parser.get('sensorsettings', 'lens_k'))
-        attr.set_attribute('lens_kcube', parser.get('sensorsettings', 'lens_kcube'))
-        attr.set_attribute('lens_x_size', parser.get('sensorsettings', 'lens_x_size'))
-        attr.set_attribute('lens_y_size', parser.get('sensorsettings', 'lens_y_size'))
-
-        # Advanced camera attributes
-        attr.set_attribute('min_fstop', parser.get('sensorsettings', 'min_fstop'))
-        attr.set_attribute('blade_count', parser.get('sensorsettings', 'blade_count'))
-        attr.set_attribute('exposure_mode', parser.get('sensorsettings', 'exposure_mode'))
-        attr.set_attribute('exposure_compensation', parser.get('sensorsettings', 'exposure_compensation'))
-        attr.set_attribute('exposure_min_bright', parser.get('sensorsettings', 'exposure_min_bright'))
-        attr.set_attribute('exposure_max_bright', parser.get('sensorsettings', 'exposure_max_bright'))
-        attr.set_attribute('exposure_speed_up', parser.get('sensorsettings', 'exposure_speed_up'))
-        attr.set_attribute('exposure_speed_down', parser.get('sensorsettings', 'exposure_speed_down'))
-        attr.set_attribute('calibration_constant', parser.get('sensorsettings', 'calibration_constant'))
-        attr.set_attribute('focal_distance', parser.get('sensorsettings', 'focal_distance'))
-        attr.set_attribute('blur_amount', parser.get('sensorsettings', 'blur_amount'))
-        attr.set_attribute('blur_radius', parser.get('sensorsettings', 'blur_radius'))
-        attr.set_attribute('motion_blur_intensity', parser.get('sensorsettings', 'motion_blur_intensity'))
-        attr.set_attribute('motion_blur_max_distortion', parser.get('sensorsettings', 'motion_blur_max_distortion'))
-        attr.set_attribute('motion_blur_min_object_screen_size',
-                           parser.get('sensorsettings', 'motion_blur_min_object_screen_size'))
-        attr.set_attribute('slope', parser.get('sensorsettings', 'slope'))
-        attr.set_attribute('toe', parser.get('sensorsettings', 'toe'))
-        attr.set_attribute('shoulder', parser.get('sensorsettings', 'shoulder'))
-        attr.set_attribute('black_clip', parser.get('sensorsettings', 'black_clip'))
-        attr.set_attribute('white_clip', parser.get('sensorsettings', 'white_clip'))
-        attr.set_attribute('temp', parser.get('sensorsettings', 'temp'))
-        attr.set_attribute('tint', parser.get('sensorsettings', 'tint'))
-        attr.set_attribute('chromatic_aberration_intensity',
-                           parser.get('sensorsettings', 'chromatic_aberration_intensity'))
-        attr.set_attribute('chromatic_aberration_offset', parser.get('sensorsettings', 'chromatic_aberration_offset'))
-
+        # attr.set_attribute('shutter_speed', parser.get('sensorsettings', 'shutter_speed'))
+        #
+        # # Camera lens distortion attributes
+        # attr.set_attribute('lens_circle_falloff', parser.get('sensorsettings', 'lens_circle_falloff'))
+        # attr.set_attribute('lens_circle_multiplier', parser.get('sensorsettings', 'lens_circle_multiplier'))
+        # attr.set_attribute('lens_k', parser.get('sensorsettings', 'lens_k'))
+        # attr.set_attribute('lens_kcube', parser.get('sensorsettings', 'lens_kcube'))
+        # attr.set_attribute('lens_x_size', parser.get('sensorsettings', 'lens_x_size'))
+        # attr.set_attribute('lens_y_size', parser.get('sensorsettings', 'lens_y_size'))
+        #
+        # # Advanced camera attributes
+        # attr.set_attribute('min_fstop', parser.get('sensorsettings', 'min_fstop'))
+        # attr.set_attribute('blade_count', parser.get('sensorsettings', 'blade_count'))
+        # attr.set_attribute('exposure_mode', parser.get('sensorsettings', 'exposure_mode'))
+        # attr.set_attribute('exposure_compensation', parser.get('sensorsettings', 'exposure_compensation'))
+        # attr.set_attribute('exposure_min_bright', parser.get('sensorsettings', 'exposure_min_bright'))
+        # attr.set_attribute('exposure_max_bright', parser.get('sensorsettings', 'exposure_max_bright'))
+        # attr.set_attribute('exposure_speed_up', parser.get('sensorsettings', 'exposure_speed_up'))
+        # attr.set_attribute('exposure_speed_down', parser.get('sensorsettings', 'exposure_speed_down'))
+        # attr.set_attribute('calibration_constant', parser.get('sensorsettings', 'calibration_constant'))
+        # attr.set_attribute('focal_distance', parser.get('sensorsettings', 'focal_distance'))
+        # attr.set_attribute('blur_amount', parser.get('sensorsettings', 'blur_amount'))
+        # attr.set_attribute('blur_radius', parser.get('sensorsettings', 'blur_radius'))
+        # attr.set_attribute('motion_blur_intensity', parser.get('sensorsettings', 'motion_blur_intensity'))
+        # attr.set_attribute('motion_blur_max_distortion', parser.get('sensorsettings', 'motion_blur_max_distortion'))
+        # attr.set_attribute('motion_blur_min_object_screen_size',
+        #                    parser.get('sensorsettings', 'motion_blur_min_object_screen_size'))
+        # attr.set_attribute('slope', parser.get('sensorsettings', 'slope'))
+        # attr.set_attribute('toe', parser.get('sensorsettings', 'toe'))
+        # attr.set_attribute('shoulder', parser.get('sensorsettings', 'shoulder'))
+        # attr.set_attribute('black_clip', parser.get('sensorsettings', 'black_clip'))
+        # attr.set_attribute('white_clip', parser.get('sensorsettings', 'white_clip'))
+        # attr.set_attribute('temp', parser.get('sensorsettings', 'temp'))
+        # attr.set_attribute('tint', parser.get('sensorsettings', 'tint'))
+        # attr.set_attribute('chromatic_aberration_intensity',
+        #                    parser.get('sensorsettings', 'chromatic_aberration_intensity'))
+        # attr.set_attribute('chromatic_aberration_offset', parser.get('sensorsettings', 'chromatic_aberration_offset'))
+        image_w = float(parser.get('sensorsettings', 'image_size_x'))
+        image_h = float(parser.get('sensorsettings', 'image_size_y'))
+        fov = float(parser.get('sensorsettings', 'fov'))
+        focal = image_w / (2.0 * np.tan(fov * np.pi / 360.0))
+        print("Fx = Fy = %f || Cy =  %f|| Cx = %f||" % (focal, image_w / 2.0, image_h / 2.0))
         sensor_location = carla.Location(1, 0, 1.2)
         sensor_rotation = carla.Rotation(8.75, 0, 0)
         sensor_transform = carla.Transform(sensor_location, sensor_rotation)
@@ -395,19 +399,19 @@ def main():
         sensor = world.spawn_actor(attr, sensor_transform, attach_to=all_vehicle_actors[0],
                                    attachment_type=carla.AttachmentType.Rigid)
 
-        if parser.getboolean('worldsettings', 'car_lights_on'):
-            if 1 <= choice <= 25:
-                all_vehicle_actors = world.get_actors(vehicles_list)
-                for actor in all_vehicle_actors:
-                    traffic_manager.update_vehicle_lights(actor, True)
-            if 7 <= choice <= 27:
-                lights = world.get_lightmanager()
-                street = lights.get_all_lights(carla.LightGroup.Street)
-                lights.turn_on(street)
-            if 19 <= choice <= 25:
-                lights = world.get_lightmanager()
-                building = lights.get_all_lights(carla.LightGroup.Building)
-                lights.turn_on(building)
+        # if parser.getboolean('worldsettings', 'car_lights_on'):
+        #     if 1 <= choice <= 25:
+        #         all_vehicle_actors = world.get_actors(vehicles_list)
+        #         for actor in all_vehicle_actors:
+        #             traffic_manager.update_vehicle_lights(actor, True)
+        #     if 7 <= choice <= 27:
+        #         lights = world.get_lightmanager()
+        #         street = lights.get_all_lights(carla.LightGroup.Street)
+        #         lights.turn_on(street)
+        #     if 19 <= choice <= 25:
+        #         lights = world.get_lightmanager()
+        #         building = lights.get_all_lights(carla.LightGroup.Building)
+        #         lights.turn_on(building)
 
         # -------------
         # Spawn Walkers
@@ -529,7 +533,7 @@ def main():
             else:
                 world.wait_for_tick()
 
-            if somador > 250:
+            if somador > 1200:
                 break
 
             if sensor_queue.qsize() > 0:

@@ -98,7 +98,7 @@ for i in lines:
         if float(i.split(',')[0]) == j:
             new_f.write("%s" % i)
             gt_data.append(
-                Data(-float(i.split(',')[1]), float(i.split(',')[3]), -float(i.split(',')[2]), float(i.split(',')[4]),
+                Data(float(i.split(',')[1]), float(i.split(',')[3]), float(i.split(',')[2]), float(i.split(',')[4]),
                      float(i.split(',')[5]), float(i.split(',')[6])))
 f.close()
 new_f.close()
@@ -170,24 +170,16 @@ for c, i in enumerate(orb_data):
 # ________________Evaluation__________________
 err = []
 step_size = 10
-length = [25,50, 75, 100, 125, 150, 175, 200, 225, 250, 300, 350, 400, 450, 500, 600, 700, 800]
-#length = [100, 200, 300, 400, 500, 600, 700]
-# length = [i * 1 for i in range(1, 30)]
+#length = [25,50, 75, 100, 125, 150, 175, 200, 225, 250, 300, 350, 400, 450, 500, 600, 700, 800]
+#length = [50,100,150, 200, 300, 400, 500, 600, 700]
+length = [100, 200, 300, 400, 500, 600, 700]
+#length = [i * 1 for i in range(1, 30)]
 
 dist = []
 dist.append(0)
 
 errado = []
-# gt_collector = [
-#     numpy.array([[1, 2, 3, 0], [5, 6, 7, 0], [9, 1, 2, 0], [0, 0, 0, 1]]),
-#     numpy.array([[1, 2, 3, 1], [5, 6, 7, 1], [9, 1, 2, 1], [0, 0, 0, 1]]),
-#     numpy.array([[1, 2, 3, 2], [5, 6, 7, 2], [9, 1, 2, 2], [0, 0, 0, 1]]),
-#     numpy.array([[1, 2, 3, 3], [5, 6, 7, 3], [9, 1, 2, 3], [0, 0, 0, 1]])]
-# orb_collector = [
-#     numpy.array([[1, 2, 3, 1], [5, 6, 7, 1], [9, 1, 2, 1], [0, 0, 0, 1]]),
-#     numpy.array([[1, 2, 3, 2], [5, 6, 7, 2], [9, 1, 2, 2], [0, 0, 0, 1]]),
-#     numpy.array([[1, 2, 3, 3], [5, 6, 7, 3], [9, 1, 2, 3], [0, 0, 0, 1]]),
-#     numpy.array([[1, 2, 3, 4], [5, 6, 7, 4], [9, 1, 2, 4], [0, 0, 0, 1]])]
+
 
 for c, i in enumerate(gt_collector):
     if c + 1 > len(gt_collector) - 1:
@@ -203,8 +195,6 @@ for c, i in enumerate(gt_collector):
     dy = P1[1][3] - P2[1][3]
     dz = P1[2][3] - P2[2][3]
     dist.append(dist[c] + math.sqrt(dx * dx + dy * dy + dz * dz))
-
-print(f"This is dist: {dist}")
 
 for first_frame in range(0, len(gt_collector), step_size):
     for i,c in enumerate(length):
@@ -241,7 +231,8 @@ for first_frame in range(0, len(gt_collector), step_size):
         rot_err = rot_err / travelled_distance
         t_err = t_err / travelled_distance
         err.append(Error(first_frame, rot_err, t_err, travelled_distance, speed))
-        print("De %f a %f o erro é: %f com o travelled_distance: %f" % (dist[first_frame], dist[l], t_err, travelled_distance))
+
+        #print("De %f a %f o erro é: %f com o travelled_distance: %f" % (dist[first_frame], dist[l], t_err, travelled_distance))
 
 f = open("Final_Evaluation.txt", "w")
 for i in err:
@@ -265,8 +256,8 @@ for c, i in enumerate(length):
     r_err = 0
     num = 0
     for j in err:
-
         if math.fabs(j.len - length[c]) < 1.0:
+            #print("Distance Travelled: %f, ou seja, de %f a %f. Valor: %f " % (j.len, dist[j.first_frame],dist[j.first_frame]+length[c], j.t_err))
             #print("%f - %f < 1.0. Valor: %f " % (j.len, length[c], j.t_err))
             t_err += j.t_err
             r_err += j.r_err
@@ -275,26 +266,62 @@ for c, i in enumerate(length):
         new_t.append(t_err / num)
         new_r.append(r_err / num)
         loc.append(length[c])
-        # print("%f %f" % (length[c], t_err / num))
+        #print("%f %f" % (length[c], t_err / num))
         # print("%f %f" % (length[c], r_err / num))
         l += 1
+speed_range = np.arange(0, 100, 5)
+speed_results = []
+error_results = []
+for i in speed_range:
+    t_err = 0
+    r_err = 0
+    num = 0
+    for j in err:
+        if math.fabs(j.speed-i)<2.0:
+            t_err += j.t_err
+            r_err += j.r_err
+            num += 1
+    if num>2.5:
+        speed_results.append(i)
+        error_results.append(t_err/num)
+        print("Speed: %f and Error: %f" % (i, t_err/num))
+
+
+
 
 import matplotlib.pyplot as plt
 
 fig1 = plt.figure(figsize=(10, 10))
-
-plt.plot([i.x for i in orb_data], [i.z for i in orb_data], color="r", linestyle="dotted")
+plt.plot([i.x for i in orb_data], [i.z for i in orb_data], color="r", linestyle="dotted",label="Visual Odometry")
 plt.axis('equal')
-
-
-
-plt.plot([i.x for i in gt_data], [i.z for i in gt_data], color="g")
+plt.plot([i.x for i in gt_data], [i.z for i in gt_data], color="g",label="Ground Truth")
+plt.plot(gt_data[0].x,gt_data[0].z,color="black",marker = 's', markerfacecolor = 'white',label="Sequence Start")
 plt.axis('equal')
+plt.legend(loc="upper right")
+plt.savefig('./tests/trajectory.png')
 
 fig2 = plt.figure()
-plt.plot([i for i in loc], [i for i in new_t], color="b")
+plot_y = [i for i in new_t]
+plot_x = [i for i in loc]
+plt.plot(plot_x, plot_y, color="b", marker = 's', markerfacecolor = 'white', label="Translation Error")
+plt.yticks(np.arange(0, max(plot_y) + 0.2, 0.2))
+plt.xticks(np.arange(min(length), max(length) + 100, 100))
+plt.ylabel("Translation Error [%]")
+plt.xlabel("Path Length [m]")
+plt.title("Test_2")
+plt.legend(loc="upper right")
+plt.savefig('./tests/length_error.png')
 
-# plt.plot([i for i in loc], [i for i in new_r], color="r", linestyle="dotted")
-# plt.axis('equal')
+fig3 = plt.figure()
+plot_y = error_results
+plot_x = speed_results
 
-plt.show()
+plt.plot(plot_x, plot_y, color="b", marker = 's', markerfacecolor = 'white', label="Speed Error")
+plt.yticks(np.arange(0, max(plot_y) + 0.2, 0.2))
+plt.xticks(np.arange(min(plot_x), max(plot_x) + 5, 5))
+plt.ylabel("Translation Error [%]")
+plt.xlabel("Speed [km/h]")
+plt.title("Test_2")
+plt.legend(loc="upper right")
+plt.savefig('./tests/speed_error.png')
+
