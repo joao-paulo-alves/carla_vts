@@ -70,16 +70,16 @@ for c, i in enumerate(lines):
 
     t0 = +2.0 * (w * x + y * z)
     t1 = +1.0 - 2.0 * (x * x + y * y)
-    roll_x = math.degrees(math.atan2(t0, t1))
+    roll_x = 0
 
     t2 = +2.0 * (w * y - z * x)
     t2 = +1.0 if t2 > +1.0 else t2
     t2 = -1.0 if t2 < -1.0 else t2
-    pitch_y = math.degrees(math.asin(t2))
+    pitch_y = 0
 
     t3 = +2.0 * (w * z + x * y)
     t4 = +1.0 - 2.0 * (y * y + z * z)
-    yaw_z = math.degrees(math.atan2(t3, t4))
+    yaw_z = 0
 
     e_result.append(Euler(yaw_z, roll_x, pitch_y))
     orb_data.append(Data(x1, y1, z1, yaw_z,
@@ -99,7 +99,7 @@ for i in lines:
             new_f.write("%s" % i)
             gt_data.append(
                 Data(float(i.split(',')[1]), float(i.split(',')[3]), float(i.split(',')[2]), float(i.split(',')[4]),
-                     float(i.split(',')[5]), float(i.split(',')[6])))
+                     0, 0))
 f.close()
 new_f.close()
 
@@ -137,43 +137,43 @@ gt_collector = []
 
 for c, i in enumerate(gt_data):
     gt_rot_mat_new = deepcopy(gt_rot_mat)
-    gt_rot_mat_new[0][0] = math.cos(i.pitch) * math.cos(i.yaw)
-    gt_rot_mat_new[0][1] = math.sin(i.roll) * math.sin(i.pitch) * math.cos(i.yaw) - math.cos(i.roll) * math.sin(i.yaw)
-    gt_rot_mat_new[0][2] = math.cos(i.roll) * math.sin(i.pitch) * math.cos(i.yaw) + math.sin(i.roll) * math.sin(i.yaw)
+    gt_rot_mat_new[0][0] = 1#math.cos(i.pitch) * math.cos(i.yaw)
+    gt_rot_mat_new[0][1] = 0#math.sin(i.roll) * math.sin(i.pitch) * math.cos(i.yaw) - math.cos(i.roll) * math.sin(i.yaw)
+    gt_rot_mat_new[0][2] = 0#math.cos(i.roll) * math.sin(i.pitch) * math.cos(i.yaw) + math.sin(i.roll) * math.sin(i.yaw)
     gt_rot_mat_new[0][3] = i.x
-    gt_rot_mat_new[1][0] = math.cos(i.pitch) * math.sin(i.yaw)
-    gt_rot_mat_new[1][1] = math.sin(i.roll) * math.sin(i.pitch) * math.sin(i.yaw) + math.cos(i.roll) * math.cos(i.yaw)
-    gt_rot_mat_new[1][2] = math.cos(i.roll) * math.sin(i.pitch) * math.sin(i.yaw) - math.sin(i.roll) * math.cos(i.yaw)
+    gt_rot_mat_new[1][0] = 0#math.cos(i.pitch) * math.sin(i.yaw)
+    gt_rot_mat_new[1][1] = 1#math.sin(i.roll) * math.sin(i.pitch) * math.sin(i.yaw) + math.cos(i.roll) * math.cos(i.yaw)
+    gt_rot_mat_new[1][2] = 0#math.cos(i.roll) * math.sin(i.pitch) * math.sin(i.yaw) - math.sin(i.roll) * math.cos(i.yaw)
     gt_rot_mat_new[1][3] = i.y
-    gt_rot_mat_new[2][0] = (-1) * math.sin(i.pitch)
-    gt_rot_mat_new[2][1] = math.sin(i.roll) * math.cos(i.pitch)
-    gt_rot_mat_new[2][2] = math.cos(i.roll) * math.cos(i.pitch)
-    gt_rot_mat_new[2][3] = i.z
+    gt_rot_mat_new[2][0] = 0#(-1) * math.sin(i.pitch)
+    gt_rot_mat_new[2][1] = 0#math.sin(i.roll) * math.cos(i.pitch)
+    gt_rot_mat_new[2][2] = 1#math.cos(i.roll) * math.cos(i.pitch)
+    gt_rot_mat_new[2][3] = 0
     gt_collector.append(gt_rot_mat_new)
 
 for c, i in enumerate(orb_data):
     orb_rot_mat_new = deepcopy(orb_rot_mat)
-    orb_rot_mat_new[0][0] = math.cos(i.pitch) * math.cos(i.yaw)
-    orb_rot_mat_new[0][1] = math.sin(i.roll) * math.sin(i.pitch) * math.cos(i.yaw) - math.cos(i.roll) * math.sin(i.yaw)
-    orb_rot_mat_new[0][2] = math.cos(i.roll) * math.sin(i.pitch) * math.cos(i.yaw) + math.sin(i.roll) * math.sin(i.yaw)
+    orb_rot_mat_new[0][0] = 1#math.cos(i.pitch) * math.cos(i.yaw)
+    orb_rot_mat_new[0][1] = 0#math.sin(i.roll) * math.sin(i.pitch) * math.cos(i.yaw) - math.cos(i.roll) * math.sin(i.yaw)
+    orb_rot_mat_new[0][2] = 0#math.cos(i.roll) * math.sin(i.pitch) * math.cos(i.yaw) + math.sin(i.roll) * math.sin(i.yaw)
     orb_rot_mat_new[0][3] = i.x
-    orb_rot_mat_new[1][0] = math.cos(i.pitch) * math.sin(i.yaw)
-    orb_rot_mat_new[1][1] = math.sin(i.roll) * math.sin(i.pitch) * math.sin(i.yaw) + math.cos(i.roll) * math.cos(i.yaw)
-    orb_rot_mat_new[1][2] = math.cos(i.roll) * math.sin(i.pitch) * math.sin(i.yaw) - math.sin(i.roll) * math.cos(i.yaw)
+    orb_rot_mat_new[1][0] = 0#math.cos(i.pitch) * math.sin(i.yaw)
+    orb_rot_mat_new[1][1] = 1#math.sin(i.roll) * math.sin(i.pitch) * math.sin(i.yaw) + math.cos(i.roll) * math.cos(i.yaw)
+    orb_rot_mat_new[1][2] = 0#math.cos(i.roll) * math.sin(i.pitch) * math.sin(i.yaw) - math.sin(i.roll) * math.cos(i.yaw)
     orb_rot_mat_new[1][3] = i.y
-    orb_rot_mat_new[2][0] = (-1) * math.sin(i.pitch)
-    orb_rot_mat_new[2][1] = math.sin(i.roll) * math.cos(i.pitch)
-    orb_rot_mat_new[2][2] = math.cos(i.roll) * math.cos(i.pitch)
-    orb_rot_mat_new[2][3] = i.z
+    orb_rot_mat_new[2][0] = 0#(-1) * math.sin(i.pitch)
+    orb_rot_mat_new[2][1] = 0#math.sin(i.roll) * math.cos(i.pitch)
+    orb_rot_mat_new[2][2] = 1#math.cos(i.roll) * math.cos(i.pitch)
+    orb_rot_mat_new[2][3] = 0
     orb_collector.append(orb_rot_mat_new)
 
 # ________________Evaluation__________________
 err = []
 step_size = 10
 #length = [25,50, 75, 100, 125, 150, 175, 200, 225, 250, 300, 350, 400, 450, 500, 600, 700, 800]
-#length = [50,100,150, 200, 300, 400, 500, 600, 700]
-length = [100, 200, 300, 400, 500, 600, 700]
-#length = [i * 1 for i in range(1, 30)]
+length = [50,100,150, 200,250, 300,350, 400, 450]
+#length = [100, 200, 300, 400, 500, 600, 700]
+#length = [i * 1 for i in range(1, 70,5)]
 
 dist = []
 dist.append(0)
@@ -230,6 +230,7 @@ for first_frame in range(0, len(gt_collector), step_size):
 
         rot_err = rot_err / travelled_distance
         t_err = t_err / travelled_distance
+        print(t_err)
         err.append(Error(first_frame, rot_err, t_err, travelled_distance, speed))
 
         #print("De %f a %f o erro é: %f com o travelled_distance: %f" % (dist[first_frame], dist[l], t_err, travelled_distance))
@@ -263,10 +264,10 @@ for c, i in enumerate(length):
             r_err += j.r_err
             num += 1
     if num > 2.5:
-        new_t.append(t_err / num)
+        new_t.append(t_err / num * 100)
         new_r.append(r_err / num)
         loc.append(length[c])
-        #print("%f %f" % (length[c], t_err / num))
+        print("%f %f" % (length[c], t_err / num))
         # print("%f %f" % (length[c], r_err / num))
         l += 1
 speed_range = np.arange(0, 100, 5)
@@ -283,8 +284,8 @@ for i in speed_range:
             num += 1
     if num>2.5:
         speed_results.append(i)
-        error_results.append(t_err/num)
-        print("Speed: %f and Error: %f" % (i, t_err/num))
+        error_results.append(t_err/num*100)
+
 
 
 
@@ -304,8 +305,8 @@ fig2 = plt.figure()
 plot_y = [i for i in new_t]
 plot_x = [i for i in loc]
 plt.plot(plot_x, plot_y, color="b", marker = 's', markerfacecolor = 'white', label="Translation Error")
-plt.yticks(np.arange(0, max(plot_y) + 0.2, 0.2))
-plt.xticks(np.arange(min(length), max(length) + 100, 100))
+#plt.yticks(np.arange(0, max(plot_y) + 0.2, 0.2))
+plt.xticks(np.arange(min(length), max(length) + 50, 50))
 plt.ylabel("Translation Error [%]")
 plt.xlabel("Path Length [m]")
 plt.title("Test_2")
@@ -317,7 +318,7 @@ plot_y = error_results
 plot_x = speed_results
 
 plt.plot(plot_x, plot_y, color="b", marker = 's', markerfacecolor = 'white', label="Speed Error")
-plt.yticks(np.arange(0, max(plot_y) + 0.2, 0.2))
+#plt.yticks(np.arange(0, max(plot_y) + 0.2, 0.2))
 plt.xticks(np.arange(min(plot_x), max(plot_x) + 5, 5))
 plt.ylabel("Translation Error [%]")
 plt.xlabel("Speed [km/h]")

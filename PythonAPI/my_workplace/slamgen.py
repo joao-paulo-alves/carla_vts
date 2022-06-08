@@ -73,7 +73,7 @@ def Weather(world, parser):
         choice = random.randint(1, 28)
         while 1 <= choice <= 18 or 26 <= choice <= 28:
             choice = random.randint(1, 28)
-    choice = 28
+    #choice = 26
     # ------------------------Cloudy Day---------------------------------
     if choice == 1:
         world.set_weather(carla.WeatherParameters.CloudyNoon)
@@ -203,17 +203,16 @@ def saving(s, x):
     #dim = (1277, 370)
     #resized = cv2.resize(im_rgb, dim, interpolation=cv2.INTER_AREA)
     Image.fromarray(im_rgb).save('output/%06d.png' % x)
-    #cv2.imwrite('output/%06d.png' % x, im_rgb)
     images.append(im_rgb)
 
 
 def main():
-    os.mkdir(r"C:\Users\uie95977\Documents\JoaoAlves\carla_vts\PythonAPI\my_workplace\output")
+    os.mkdir(r".\output")
     parser = ConfigParser()
     parser.read('config.ini')
     number_of_vehicles = parser.getint('vehiclesettings', 'number_of_vehicles')
     number_of_walkers = parser.getint('walkersettings', 'number_of_walkers')
-    seed = 20
+    seed = None
 
     logging.basicConfig(format='%(levelname)s: %(message)s', level=logging.INFO)
 
@@ -392,8 +391,8 @@ def main():
         fov = float(parser.get('sensorsettings', 'fov'))
         focal = image_w / (2.0 * np.tan(fov * np.pi / 360.0))
         print("Fx = Fy = %f || Cy =  %f|| Cx = %f||" % (focal, image_w / 2.0, image_h / 2.0))
-        sensor_location = carla.Location(1, 0, 1.2)
-        sensor_rotation = carla.Rotation(8.75, 0, 0)
+        sensor_location = carla.Location(1, 0, 1.6)
+        sensor_rotation = carla.Rotation(0, 0, 0)
         sensor_transform = carla.Transform(sensor_location, sensor_rotation)
 
         sensor = world.spawn_actor(attr, sensor_transform, attach_to=all_vehicle_actors[0],
@@ -533,15 +532,15 @@ def main():
             else:
                 world.wait_for_tick()
 
-            if somador > 1200:
+            if somador > 500:
                 break
 
             if sensor_queue.qsize() > 0:
                 s = sensor_queue.get(True, 0.01)
                 timestamp.append(s[1])
-                # if s[2].rotation.yaw < 0:
-                #     s[2].rotation.yaw = s[2].rotation.yaw + 360
-                location.append(Ego(-s[2].location.x, s[2].location.y, s[2].location.z, -s[2].rotation.yaw,
+                if s[2].rotation.yaw < 0:
+                    s[2].rotation.yaw = s[2].rotation.yaw + 360
+                location.append(Ego(-s[2].location.x, s[2].location.y, s[2].location.z, s[2].rotation.yaw,
                                     s[2].rotation.roll, s[2].rotation.pitch))
                 f = executor.submit(saving, s, i)
                 i = i + 1
@@ -608,7 +607,7 @@ def main():
         newloc = []
 
         for x in reformed_location:
-            theta = math.radians(location[0].yaw + 90)
+            theta = math.radians(location[0].yaw - 90)
             xx = x.x
             yy = x.y
             x1 = xx * math.cos(theta) - yy * math.sin(theta)
