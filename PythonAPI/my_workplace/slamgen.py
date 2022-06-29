@@ -5,7 +5,7 @@ import time
 from math import cos, sin, atan2
 import carla
 import imageio
-from carla import VehicleLightState as vls
+
 import logging
 from numpy import random
 from queue import Queue
@@ -27,8 +27,8 @@ from PIL import Image
 from carla_agents.agents.navigation.basic_agent import BasicAgent
 
 
-IM_WIDTH = 1277
-IM_HEIGHT = 370
+IM_WIDTH = 1920
+IM_HEIGHT = 1080
 #;2048 ;1536
 try:
     sys.path.append(glob.glob('../carla/dist/carla-*%d.%d-%s.egg' % (
@@ -199,7 +199,7 @@ def saving(s, x):
     i = np.array(s[0].raw_data, dtype='uint8')
     i2 = i.reshape((IM_HEIGHT, IM_WIDTH, 4))
     i3 = i2[:, :, :3]
-    im_rgb = cv2.cvtColor(i3, cv2.COLOR_BGR2GRAY)
+    im_rgb = cv2.cvtColor(i3, cv2.COLOR_BGR2RGB)
     #dim = (1277, 370)
     #resized = cv2.resize(im_rgb, dim, interpolation=cv2.INTER_AREA)
     Image.fromarray(im_rgb).save('output/%06d.png' % x)
@@ -212,7 +212,7 @@ def main():
     parser.read('config.ini')
     number_of_vehicles = parser.getint('vehiclesettings', 'number_of_vehicles')
     number_of_walkers = parser.getint('walkersettings', 'number_of_walkers')
-    seed = None
+    seed = 1
 
     logging.basicConfig(format='%(levelname)s: %(message)s', level=logging.INFO)
 
@@ -342,7 +342,7 @@ def main():
         # # Basic camera attributes
         # attr.set_attribute('bloom_intensity', parser.get('sensorsettings', 'bloom_intensity'))
         attr.set_attribute('fov', parser.get('sensorsettings', 'fov'))
-        # attr.set_attribute('fstop', parser.get('sensorsettings', 'fstop'))
+        attr.set_attribute('fstop', parser.get('sensorsettings', 'fstop'))
         attr.set_attribute('image_size_x', parser.get('sensorsettings', 'image_size_x'))
         attr.set_attribute('image_size_y', parser.get('sensorsettings', 'image_size_y'))
         # attr.set_attribute('iso', parser.get('sensorsettings', 'iso'))
@@ -369,11 +369,11 @@ def main():
         # attr.set_attribute('exposure_speed_up', parser.get('sensorsettings', 'exposure_speed_up'))
         # attr.set_attribute('exposure_speed_down', parser.get('sensorsettings', 'exposure_speed_down'))
         # attr.set_attribute('calibration_constant', parser.get('sensorsettings', 'calibration_constant'))
-        # attr.set_attribute('focal_distance', parser.get('sensorsettings', 'focal_distance'))
-        # attr.set_attribute('blur_amount', parser.get('sensorsettings', 'blur_amount'))
-        # attr.set_attribute('blur_radius', parser.get('sensorsettings', 'blur_radius'))
-        # attr.set_attribute('motion_blur_intensity', parser.get('sensorsettings', 'motion_blur_intensity'))
-        # attr.set_attribute('motion_blur_max_distortion', parser.get('sensorsettings', 'motion_blur_max_distortion'))
+        attr.set_attribute('focal_distance', parser.get('sensorsettings', 'focal_distance'))
+        attr.set_attribute('blur_amount', parser.get('sensorsettings', 'blur_amount'))
+        attr.set_attribute('blur_radius', parser.get('sensorsettings', 'blur_radius'))
+        attr.set_attribute('motion_blur_intensity', parser.get('sensorsettings', 'motion_blur_intensity'))
+        attr.set_attribute('motion_blur_max_distortion', parser.get('sensorsettings', 'motion_blur_max_distortion'))
         # attr.set_attribute('motion_blur_min_object_screen_size',
         #                    parser.get('sensorsettings', 'motion_blur_min_object_screen_size'))
         # attr.set_attribute('slope', parser.get('sensorsettings', 'slope'))
@@ -532,7 +532,7 @@ def main():
             else:
                 world.wait_for_tick()
 
-            if somador > 500:
+            if somador > 10:
                 break
 
             if sensor_queue.qsize() > 0:
