@@ -3,7 +3,7 @@ from copy import deepcopy
 
 import numpy
 import numpy as np
-
+from scipy.spatial.transform import Rotation as R
 
 class Quaternions:
     def __init__(self, w, x, y, z):
@@ -60,31 +60,33 @@ for c, i in enumerate(lines):
     time.append(float(i.split(' ')[0]))
 
     x1 = float(i.split(' ')[1])
-    y1 = float(i.split(' ')[2])
-    z1 = float(i.split(' ')[3])
+    y1 = float(i.split(' ')[3])
+    z1 = float(i.split(' ')[2])
 
     w = float(i.split(' ')[4])
     x = float(i.split(' ')[5])
     y = float(i.split(' ')[6])
     z = float(i.split(' ')[7])
 
-    t0 = +2.0 * (w * x + y * z)
-    t1 = +1.0 - 2.0 * (x * x + y * y)
-    roll_x = 0
+    t0 = +2.0 * (w * z + x * y)
+    t1 = +1.0 - 2.0 * (z * z + x * x)
+    roll_x = math.atan2(t0,t1)
 
-    t2 = +2.0 * (w * y - z * x)
+    t2 = +2.0 * (w * x - y * z)
     t2 = +1.0 if t2 > +1.0 else t2
     t2 = -1.0 if t2 < -1.0 else t2
-    pitch_y = 0
+    pitch_y = math.asin(t2)
 
-    t3 = +2.0 * (w * z + x * y)
-    t4 = +1.0 - 2.0 * (y * y + z * z)
-    yaw_z = 0
-
+    t3 = +2.0 * (w * x + z * y)
+    t4 = +1.0 - 2.0 * (y * y + x * x)
+    yaw_z = math.atan2(t3,t4)
+    r = R.from_quat([w, y, z, x])
+    xyz = r.as_euler('zyx', degrees=True)
     e_result.append(Euler(yaw_z, roll_x, pitch_y))
-    orb_data.append(Data(x1, y1, z1, yaw_z,
-                         pitch_y, roll_x))
+    orb_data.append(Data(x1, y1, z1, xyz[0],
+                         xyz[1], xyz[2]))
     # print(yaw_z, pitch_y, roll_x, time[c])
+
 
 f.close()
 
@@ -98,7 +100,7 @@ for i in lines:
         if float(i.split(',')[0]) == j:
             new_f.write("%s" % i)
             gt_data.append(
-                Data(float(i.split(',')[1]), float(i.split(',')[3]), float(i.split(',')[2]), float(i.split(',')[4]),
+                Data(float(i.split(',')[1]), float(i.split(',')[2]), float(i.split(',')[3]), float(i.split(',')[4]),
                      0, 0))
 f.close()
 new_f.close()
@@ -166,7 +168,6 @@ for c, i in enumerate(orb_data):
     orb_rot_mat_new[2][2] = 1#math.cos(i.roll) * math.cos(i.pitch)
     orb_rot_mat_new[2][3] = 0
     orb_collector.append(orb_rot_mat_new)
-
 # ________________Evaluation__________________
 err = []
 step_size = 10
@@ -179,7 +180,6 @@ dist = []
 dist.append(0)
 
 errado = []
-
 
 for c, i in enumerate(gt_collector):
     if c + 1 > len(gt_collector) - 1:
@@ -230,7 +230,7 @@ for first_frame in range(0, len(gt_collector), step_size):
 
         rot_err = rot_err / travelled_distance
         t_err = t_err / travelled_distance
-        print(t_err)
+   #     print(t_err)
         err.append(Error(first_frame, rot_err, t_err, travelled_distance, speed))
 
         #print("De %f a %f o erro é: %f com o travelled_distance: %f" % (dist[first_frame], dist[l], t_err, travelled_distance))
@@ -247,11 +247,12 @@ for c, i in enumerate(range(0, len(gt_collector), step_size)):
     matrix2 = orb_collector[c]
     f.write("%f, %f, %f, %f\n" % (matrix1[0][3], matrix1[1][3], matrix2[0][3], matrix2[1][3]))
 f.close()
-print("----------------------------------------------")
+#print("----------------------------------------------")
 l = 0
 new_r = []
 new_t = []
 loc = []
+f = open("tests/tlen.txt", "w")
 for c, i in enumerate(length):
     t_err = 0
     r_err = 0
@@ -267,12 +268,14 @@ for c, i in enumerate(length):
         new_t.append(t_err / num * 100)
         new_r.append(r_err / num)
         loc.append(length[c])
-        print("%f %f" % (length[c], t_err / num))
-        # print("%f %f" % (length[c], r_err / num))
+
+        f.write("%f\n" % (t_err / num * 100))
         l += 1
+f.close()
 speed_range = np.arange(0, 100, 5)
 speed_results = []
 error_results = []
+f = open("tests/tspee.txt", "w")
 for i in speed_range:
     t_err = 0
     r_err = 0
@@ -282,10 +285,13 @@ for i in speed_range:
             t_err += j.t_err
             r_err += j.r_err
             num += 1
+
     if num>2.5:
         speed_results.append(i)
         error_results.append(t_err/num*100)
+        f.write("%f\n" % (t_err/num*100))
 
+f.close()
 
 
 
@@ -293,10 +299,10 @@ for i in speed_range:
 import matplotlib.pyplot as plt
 
 fig1 = plt.figure(figsize=(10, 10))
-plt.plot([i.x for i in orb_data], [i.z for i in orb_data], color="r", linestyle="dotted",label="Visual Odometry")
+plt.plot([i.x for i in orb_data], [i.y for i in orb_data], color="r", linestyle="dotted",label="Visual Odometry")
 plt.axis('equal')
-plt.plot([i.x for i in gt_data], [i.z for i in gt_data], color="g",label="Ground Truth")
-plt.plot(gt_data[0].x,gt_data[0].z,color="black",marker = 's', markerfacecolor = 'white',label="Sequence Start")
+plt.plot([i.x for i in gt_data], [i.y for i in gt_data], color="g",label="Ground Truth")
+plt.plot(gt_data[0].x,gt_data[0].y,color="black",marker = 's', markerfacecolor = 'white',label="Sequence Start")
 plt.axis('equal')
 plt.legend(loc="upper right")
 plt.savefig('./tests/trajectory.png')

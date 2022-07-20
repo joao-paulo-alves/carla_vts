@@ -49,7 +49,7 @@ f.close()
 
 
 print(len(resultx))
-resultx = -numpy.asarray(resultx).astype(numpy.float)
+resultx = numpy.asarray(resultx).astype(numpy.float)
 resulty = numpy.asarray(resulty).astype(numpy.float)
 
 # resultx = minmax_scale(resultx, feature_range=(min_x,max_x))
