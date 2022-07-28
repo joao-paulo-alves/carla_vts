@@ -27,8 +27,8 @@ import math
 from PIL import Image
 from carla_agents.agents.navigation.basic_agent import BasicAgent
 
-IM_WIDTH = 1277
-IM_HEIGHT = 1277
+IM_WIDTH = 2048
+IM_HEIGHT = 1536
 # ;2048 ;1536
 try:
     sys.path.append(glob.glob('../carla/dist/carla-*%d.%d-%s.egg' % (
@@ -42,8 +42,12 @@ images = []
 video_writer = imageio.get_writer('my_video.mp4', format='FFMPEG', mode='I', fps=10)
 
 
-##atexit.register(lambda: write_images_to_video(images, video_writer))
+atexit.register(lambda: write_images_to_video(images, video_writer))
 
+def carla_vec_to_np_array(vec):
+    return np.array([vec.x,
+                     vec.y,
+                     vec.z])
 
 class Ego:
     def __init__(self, x, y, z, yaw, roll, pitch):
@@ -194,19 +198,22 @@ def sensor_callback(sensor_data, sensor_queue, timer, sensor, world):
     ego_location = sensor.get_transform()
     waypoint = world.get_map().get_waypoint(sensor.get_location(), project_to_road=True,
                                             lane_type=(carla.LaneType.Driving))
-    if waypoint is not None:
-        world.debug.draw_string(waypoint.transform.location, 'O', draw_shadow=False,
-                                color=carla.Color(r=0, g=255, b=0), life_time=120,
-                                persistent_lines=True)
-    #waypoint = waypoint.get_left_lane()
-    sensor_queue.put((sensor_data, timer, ego_location, waypoint))
+    offset = (
+            carla_vec_to_np_array(waypoint.transform.get_right_vector())
+            * waypoint.lane_width
+            / 2.0
+    )
+
+    # waypoint_left = waypoint - offset
+    # waypoint_right = waypoint + offset
+    sensor_queue.put((sensor_data, timer, ego_location, waypoint.transform.get_matrix(),waypoint.get_left_lane().transform.get_matrix(),waypoint.get_right_lane().transform.get_matrix(), offset))
 
 
 def saving(s, x):
     i = np.array(s[0].raw_data, dtype='uint8')
     i2 = i.reshape((IM_HEIGHT, IM_WIDTH, 4))
     i3 = i2[:, :, :3]
-    im_rgb = cv2.cvtColor(i3, cv2.COLOR_BGR2GRAY)
+    im_rgb = cv2.cvtColor(i3, cv2.COLOR_BGR2RGB)
     # dim = (1277, 370)
     # resized = cv2.resize(im_rgb, dim, interpolation=cv2.INTER_AREA)
     Image.fromarray(im_rgb).save('output/%06d.png' % x)
@@ -531,6 +538,9 @@ def main():
         loc_init1 = sensor.get_transform()
         loc_init = sensor.get_transform()
         wayloc = []
+        wayloc_left = []
+        off = []
+        wayloc_right = []
         sensor.listen(lambda data: sensor_callback(data, sensor_queue, timer, sensor, world))
 
         while True:
@@ -544,7 +554,7 @@ def main():
             else:
                 world.wait_for_tick()
 
-            if timer > 3:
+            if timer > 10:
                 break
 
             if sensor_queue.qsize() > 0:
@@ -552,11 +562,11 @@ def main():
                 timestamp.append(s[1])
                 # if s[2].rotation.yaw < 0:
                 #     s[2].rotation.yaw = s[2].rotation.yaw + 360
-                location.append(Ego(s[2].location.x, s[2].location.y, s[2].location.z, s[2].rotation.yaw,
-                                    s[2].rotation.roll, s[2].rotation.pitch))
-                wayloc.append(Ego(s[3].transform.location.x, s[3].transform.location.y, s[3].transform.location.z,
-                                  s[3].transform.rotation.yaw,
-                                  s[3].transform.rotation.roll, s[3].transform.rotation.pitch))
+                location.append(s[2].get_inverse_matrix())
+                wayloc.append(s[3])
+                wayloc_left.append(s[4])
+                wayloc_right.append(s[5])
+                off.append(s[6])
                 f = executor.submit(saving, s, i)
                 i = i + 1
             loc_final = sensor.get_transform()
@@ -603,152 +613,75 @@ def main():
 
         f.close()
 
-        wp = numpy.zeros((4, 1))
-        left_lane_points = []
-        # wc = numpy.zeros((4, 1))
-        # wc[0][0] = location[0].x
-        # wc[1][0] = location[0].y
-        # wc[2][0] = location[0].z
-        # wc[3][0] = 1
-        #print(world.get_actor(all_actors[1].id).get_transform().rotation)
-        rot = numpy.zeros((4, 4))
-        rot[3][3] = 1
-        rot[0][0] = math.cos(location[0].pitch) * math.cos(location[0].yaw)
-        rot[0][1] = -math.sin(location[0].yaw) * math.cos(location[0].roll) + math.cos(location[0].yaw) * math.sin(location[0].pitch) * math.sin(location[0].roll)
-        rot[0][2] = -math.sin(location[0].yaw) * math.sin(location[0].roll) - math.cos(location[0].roll) * math.sin(location[0].pitch) * math.cos(location[0].yaw)
-        rot[0][3] = location[0].x
-        rot[1][0] = math.cos(location[0].pitch) * math.sin(location[0].yaw)
-        rot[1][1] = math.sin(location[0].roll) * math.sin(location[0].pitch) * math.sin(location[0].yaw) + math.cos(location[0].roll) * math.cos(location[0].yaw)
-        rot[1][2] = -math.cos(location[0].roll) * math.sin(location[0].pitch) * math.sin(location[0].yaw) + math.sin(location[0].roll) * math.cos(location[0].yaw)
-        rot[1][3] = location[0].y
-        rot[2][0] = math.sin(location[0].pitch)
-        rot[2][1] = -math.sin(location[0].roll) * math.cos(location[0].pitch)
-        rot[2][2] = math.cos(location[0].roll) * math.cos(location[0].pitch)
-        rot[2][3] = location[0].z
-
         K = numpy.zeros((3,3))
         K[0][0] = image_w / (2.0 * np.tan(fov * np.pi / 360.0))
-        K[1][1] = image_h / (2.0 * np.tan(fov * np.pi / 360.0))
+        K[1][1] = image_w / (2.0 * np.tan(fov * np.pi / 360.0))
         K[0][2] = image_w / 2.0
         K[1][2] = image_h / 2.0
         K[2][2] = 1
 
         image = cv2.imread("./output/000000.PNG")
-        blueprint_library = world.get_blueprint_library()
-        pedestrian_id = blueprint_library.find('walker.pedestrian.0001')
-        new_t = carla.Transform(Location(x=wayloc[10].x, y=wayloc[10].y, z=wayloc[10].z),
-                  Rotation(pitch=wayloc[10].pitch, yaw=wayloc[10].yaw, roll=wayloc[10].roll))
-        pedestre = world.try_spawn_actor(pedestrian_id, new_t)
-        for index in wayloc[10:11]:
-            wp[0][0] = index.x
-            wp[1][0] = index.y
-            wp[2][0] = index.z
-            wp[3][0] = 1
-            print(f"This is wp = {vars(wayloc[10])}")
-            print(f"This is pedestre = {pedestre.get_transform()}")
-            #print(f"This is init = {loc_init1}")
-            cp = np.dot(np.linalg.inv(rot), wp)
-            left_lane_points.append(cp)
+        # for i in wayloc:
+        #     world_point = numpy.zeros((4,1))
+        #     world_point[0][0] = i[0][3]
+        #     world_point[1][0] = i[1][3]
+        #     world_point[2][0] = i[2][3]
+        #     world_point[3][0] = 1
+        #     world_2_camera = location[0]
+        #     sensor_points = np.dot(world_2_camera, world_point)
+        #     point_in_camera_coords = np.array([
+        #         sensor_points[1],
+        #         sensor_points[2] * -1,
+        #         sensor_points[0]])
+        #     points_2d = np.dot(K, point_in_camera_coords)
+        #     u_coord, v_coord, _ = tuple(map(int, points_2d/points_2d[2][0]))
+        #     image = cv2.circle(image, (u_coord, v_coord), radius=5, color=(0, 0, 255), thickness=-1)
 
+        file = open("left_lane.txt", "w+")
+        f = open("left_lane.txt", "w+")
 
+        for i in wayloc_left:
+            world_point = numpy.zeros((4,1))
+            world_point[0][0] = i[0][3] + off[1][0]
+            world_point[1][0] = i[1][3] + off[1][1]
+            world_point[2][0] = i[2][3] + off[1][2]
+            world_point[3][0] = 1
+            world_2_camera = location[0]
+            sensor_points = np.dot(world_2_camera, world_point)
+            point_in_camera_coords = np.array([
+                sensor_points[1],
+                sensor_points[2] * -1,
+                sensor_points[0]])
+            points_2d = np.dot(K, point_in_camera_coords)
+            u_coord, v_coord, _ = tuple(map(int, points_2d/points_2d[2][0]))
+            f.write("%f, %f\n" % (u_coord,v_coord))
+            image = cv2.circle(image, (u_coord, v_coord), radius=5, color=(0, 0, 255), thickness=-1)
+        f.close()
 
+        file = open("right_lane.txt", "w+")
+        f = open("right_lane.txt", "w+")
 
-        xyz = numpy.zeros((3, 1))
+        for i in wayloc_right:
+            world_point = numpy.zeros((4,1))
 
-        for x in left_lane_points:
-            xyz[0][0] = x[0][0]
-            xyz[1][0] = x[1][0]
-            xyz[2][0] = x[2][0]
-            final = np.dot(K,xyz)
-            # final = final/final[2][0]
-            width = image.shape[1]
-            height = image.shape[0]
-           # print("0 < %f < %f" % (final[0][0],width))
-            #print("0 < %f < %f" % (final[1][0], height))
-            image = cv2.circle(image, (int(1), int(1)), radius=5, color=(0, 0, 255),
-                               thickness=-1)
-            image = cv2.circle(image, (int(100), int(1)), radius=5, color=(255, 0, 255),
-                               thickness=-1)
-            image = cv2.circle(image, (int(1), int(100)), radius=5, color=(0, 255, 255),
-                               thickness=-1)
-            if 0 < final[0][0] < width and 0 < final[1][0] < height:
-                image = cv2.circle(image, (int(final[0][0]), int(final[1][0])), radius=5, color=(0, 0, 255),
-                                   thickness=-1)
+            world_point[0][0] = i[0][3] - off[1][0]
+            world_point[1][0] = i[1][3] - off[1][1]
+            world_point[2][0] = i[2][3] - off[1][2]
+            world_point[3][0] = 1
+            world_2_camera = location[0]
+            sensor_points = np.dot(world_2_camera, world_point)
+            point_in_camera_coords = np.array([
+                sensor_points[1],
+                sensor_points[2] * -1,
+                sensor_points[0]])
+            points_2d = np.dot(K, point_in_camera_coords)
+            u_coord, v_coord, _ = tuple(map(int, points_2d/points_2d[2][0]))
+            f.write("%f, %f\n" % (u_coord, v_coord))
+            image = cv2.circle(image, (u_coord, v_coord), radius=5, color=(0, 0, 255), thickness=-1)
+        f.close()
 
-
-        cv2.imshow('Frame', image)
-        cv2.waitKey()
-
-
-
-
-
-        # reformed_location = []
-        # origin = location[0]
-        # i = 0
-        # for x in wayloc:
-        #     if x is not None:
-        #         reformed_location.append(Ego(x.x - origin.x, x.y - origin.y,
-        #                                      x.z - origin.z, x.yaw,
-        #                                      x.roll,
-        #                                      x.pitch))
-        # newloc = []
-        # i = 0
-        # for x in reformed_location:
-        #     theta = math.radians(location[i].yaw - 90)
-        #     xx = x.x
-        #     yy = x.y
-        #     x1 = xx * math.cos(theta) - yy * math.sin(theta)
-        #     y1 = xx * math.sin(theta) + yy * math.cos(theta)
-        #     newloc.append(Ego(x1, y1,
-        #                       x.z, x.yaw,
-        #                       x.roll,
-        #                       x.pitch))
-        #     i = i + 1
-        #
-        # image = cv2.imread("./output/000000.PNG")
-        #
-
-        #
-        # pixel = numpy.zeros((4,1))
-        #
-        # resul = numpy.zeros((3,1))
-        #
-        # for x in reformed_location:
-        #     pixel[0][0] = -x.z
-        #     pixel[1][0] = x.x
-        #     pixel[2][0] = x.y
-        #     pixel[3][0] = 1
-        #
-        #     resul = numpy.dot(K,pixel)
-        #     resul = resul/resul[2][0]
-        #     print(pixel)
-        #     print(K)
-        #     print(resul
-        #           )
-        #     cv2.waitKey()
-        #     print(resul[0][0])
-        #     print(resul[1][0])
-        #     print("\n")
-        #
-        #
-        #
-
-        # # scale_percent = 100  # calculate the 50 percent of original dimensions
-        # # new_width = int(image.shape[1] * scale_percent / 100)
-        # # new_height = int(image.shape[0] * scale_percent / 100)
-        # # dsize = (new_width, new_height)  # resize image
-        # # image = cv2.resize(image, dsize)
         # cv2.imshow('Frame', image)
         # cv2.waitKey()
-        # # file = open("GT_coordinates.txt", "w+")
-        # # f = open("GT_coordinates.txt", "w+")
-        # # i = 0
-        # # for x in newloc:
-        # #     if x is not None:
-        # #         f.write("%s, %f, %f, %f, %f, %f, %f\n" % (time1[i], x.x, x.y, x.z, x.yaw, x.roll, x.pitch))
-        # #     i = i + 1
-        # # f.close()
 
 
 if __name__ == '__main__':
